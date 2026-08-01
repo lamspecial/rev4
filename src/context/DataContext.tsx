@@ -30,12 +30,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Load from local storage or fallback to mockData
-    const savedUsers = localStorage.getItem('app_users_v4');
+    const savedUsers = localStorage.getItem('app_users_v5');
     if (savedUsers) {
       setUsers(JSON.parse(savedUsers));
     } else {
       setUsers(mockUsers);
-      localStorage.setItem('app_users_v4', JSON.stringify(mockUsers));
+      localStorage.setItem('app_users_v5', JSON.stringify(mockUsers));
     }
 
     const savedSettings = localStorage.getItem('app_branch_settings');
@@ -76,7 +76,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTimeout(() => {
       try {
         if (newUsers.length > 0) {
-          localStorage.setItem('app_users_v4', JSON.stringify(newUsers));
+          localStorage.setItem('app_users_v5', JSON.stringify(newUsers));
         }
       } catch (e) {
         console.error('LocalStorage Quota Exceeded for users', e);
