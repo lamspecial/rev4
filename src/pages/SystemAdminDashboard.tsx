@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2 } from 'lucide-react';
 import employeeImg from '../assets/employee.png';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
-  const { users, updateUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent } = useData();
-  const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes'>('timeline');
+  const { users, updateUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, updateReview, deleteReview } = useData();
+  const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats'>('timeline');
 
   const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
   const [selectedBranch, setSelectedBranch] = useState(branches[0]);
@@ -18,6 +18,39 @@ export const SystemAdminDashboard: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingEmpId, setUploadingEmpId] = useState<string | null>(null);
+
+  const [reviewsText, setReviewsText] = useState('');
+  const [viewingReviewsMonth, setViewingReviewsMonth] = useState('');
+  const [linkingReviewId, setLinkingReviewId] = useState<string | null>(null);
+  const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
+  const allAvailableEmployees = users.filter(u => (u.branch === selectedTimelineBranch || u.branch === 'موظفة خارجية') && u.role === 'employee');
+
+  const handleInjectReviews = () => {
+    if (!reviewsText.trim()) return;
+    injectReviews(selectedBranch, reviewsText);
+    showToast('تم استيراد وحقن التقييمات بنجاح');
+    setReviewsText('');
+  };
+  
+  const handleSaveLinking = (timelineId: string, reviewId: string | undefined) => {
+    const selectedEmps = allAvailableEmployees.filter(u => linkingSelection.includes(u.id)).map(e => ({ id: e.id, name: e.name }));
+    updateTimelineEvent(timelineId, { employees: selectedEmps });
+    if (reviewId) {
+      updateReview(reviewId, { linkedEmployeeIds: linkingSelection });
+    }
+    setLinkingReviewId(null);
+    setLinkingSelection([]);
+  };
+
+  const handleDeleteTimelineEvent = (id: string, reviewId?: string) => {
+    if (!confirm('هل أنت متأكد من الحذف؟')) return;
+    if (reviewId) {
+      deleteReview(reviewId);
+    } else {
+      deleteTimelineEvent(id);
+    }
+    showToast('تم الحذف بنجاح');
+  };
 
   // Toast notification
   const [toast, setToast] = useState<string | null>(null);
@@ -225,22 +258,75 @@ export const SystemAdminDashboard: React.FC = () => {
               <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent mt-8">
                 {filteredTimeline.map((item) => (
                   <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${item.type === 'gap' ? 'bg-red-500' : 'bg-green-500'}`}>
-                      {item.type === 'gap' ? <AlertOctagon size={16} className="text-white" /> : <CalendarClock size={16} className="text-white" />}
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${item.type === 'gap' ? 'bg-red-500' : item.type === 'review' ? 'bg-yellow-500' : 'bg-green-500'}`}>
+                      {item.type === 'gap' ? <AlertOctagon size={16} className="text-white" /> : item.type === 'review' ? <span className="text-white text-xs font-bold">★</span> : <CalendarClock size={16} className="text-white" />}
                     </div>
                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border shadow-sm">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : 'text-green-600'}`}>{item.title}</h4>
-                        <time className="text-xs font-medium text-gray-500">{item.time}</time>
+                        <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : item.type === 'review' ? 'text-yellow-600' : 'text-green-600'}`}>{item.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <time className="text-xs font-medium text-gray-500">{item.date} {item.time}</time>
+                          <button onClick={() => handleDeleteTimelineEvent(item.id, item.reviewId)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                        </div>
                       </div>
                       
-                      {item.comment && (
+                      {item.type !== 'review' && item.comment && (
                         <div className="mt-3 border-t pt-3">
                           <p className="text-sm bg-gray-50 p-2 rounded text-gray-700 italic border-r-2 border-red-500 mb-3">
                             {item.title.includes('اعتراض') ? 'الاعتراض: ' : item.title.includes('شكوى') ? 'الشكوى: ' : 'تعليق: '} {item.comment}
                           </p>
                           {item.title.includes('اعتراض') && (
                             <button className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 font-bold" onClick={() => { showToast('تمت الموافقة وتحديث بيانات الشفت'); }}>معالجة وقبول الاعتراض</button>
+                          )}
+                        </div>
+                      )}
+
+                      {item.type === 'review' && (
+                        <div className="mt-3 border-t pt-3">
+                          {item.comment && <p className="text-sm bg-gray-50 p-2 rounded text-gray-700 italic border-r-2 border-yellow-500 mb-2">"{item.comment}"</p>}
+                          
+                          {linkingReviewId === item.id ? (
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
+                              <p className="text-sm font-bold mb-2">تحديد الموظفات المرتبطات بهذا التقييم:</p>
+                              <div className="grid grid-cols-2 gap-2 mb-3 max-h-32 overflow-y-auto">
+                                {allAvailableEmployees.map(emp => (
+                                  <label key={emp.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={linkingSelection.includes(emp.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) setLinkingSelection(prev => [...prev, emp.id]);
+                                        else setLinkingSelection(prev => prev.filter(id => id !== emp.id));
+                                      }}
+                                    />
+                                    {emp.name}
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => handleSaveLinking(item.id, item.reviewId)} className="bg-green-600 text-white text-xs px-3 py-1 rounded font-bold">حفظ الربط</button>
+                                <button onClick={() => setLinkingReviewId(null)} className="bg-gray-400 text-white text-xs px-3 py-1 rounded">إلغاء</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="text-sm">
+                                {item.employees && item.employees.length > 0 ? (
+                                  <span className="text-green-600 font-bold">الموظفات: {item.employees.map(e => e.name).join('، ')}</span>
+                                ) : (
+                                  <span className="text-red-500 font-bold">التقييم غير مرتبط بأي موظفة!</span>
+                                )}
+                              </div>
+                              <button 
+                                onClick={() => { 
+                                  setLinkingReviewId(item.id); 
+                                  setLinkingSelection(item.employees ? item.employees.map(e => e.id) : []); 
+                                }}
+                                className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200"
+                              >
+                                تعديل الربط
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -448,6 +534,111 @@ export const SystemAdminDashboard: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'stats' && (
+            <div>
+              <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                <BarChart3 className="text-blue-600" size={28} />
+                <h2 className="text-2xl font-bold text-gray-800">الإحصائيات والتقييمات</h2>
+              </div>
+
+              <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-8 shadow-sm">
+                <h3 className="font-bold text-blue-900 mb-4 text-lg">حقن التقييمات للفرع</h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-blue-800 mb-2">اختر الفرع لتسجيل التقييمات</label>
+                  <select value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)} className="w-full p-3 border border-blue-200 rounded-lg">
+                    {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold text-blue-800 mb-2">النص البرمجي للتقييمات</label>
+                  <textarea 
+                    value={reviewsText} 
+                    onChange={e => setReviewsText(e.target.value)}
+                    placeholder="الصق التقييمات هنا بالصيغة المطلوبة...&#10;مثال:&#10;معرف التقييم: Abc...&#10;اسم المقيم: أحمد..."
+                    className="w-full h-48 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
+                  ></textarea>
+                </div>
+                <button onClick={handleInjectReviews} className="w-full bg-blue-600 text-white p-4 rounded-lg font-bold hover:bg-blue-700 text-lg flex items-center justify-center gap-2 shadow-md">
+                  <CheckCircle2 size={20} />
+                  بدء الحقن والمزامنة للفرع
+                </button>
+              </div>
+
+              <h3 className="font-bold text-xl mb-6 border-b pb-2 flex items-center gap-2 text-gray-800">
+                <Activity className="text-gray-500"/> استعراض تقييمات الفروع
+              </h3>
+              
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                {branches.map(b => (
+                  <button 
+                    key={b} 
+                    onClick={() => { setSelectedTimelineBranch(b); setViewingReviewsMonth(''); }}
+                    className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap ${selectedTimelineBranch === b ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  >
+                    فرع {b}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="mb-6 flex justify-between items-center bg-gray-50 p-4 rounded-xl border">
+                <h4 className="font-bold text-gray-700">التقييمات المسجلة: {reviews.filter(r => r.branch === selectedTimelineBranch).length}</h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500 font-bold">الفلترة:</span>
+                  <select 
+                    value={viewingReviewsMonth} 
+                    onChange={e => setViewingReviewsMonth(e.target.value)}
+                    className="p-2 border rounded-lg bg-white text-sm font-bold"
+                  >
+                    <option value="">جميع الأشهر</option>
+                    {Array.from(new Set(reviews.filter(r => r.branch === selectedTimelineBranch).map(r => r.date.substring(3)))).map(m => (
+                      <option key={m as string} value={m as string}>{m as string}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                {reviews.filter(r => r.branch === selectedTimelineBranch && (viewingReviewsMonth ? r.date.endsWith(viewingReviewsMonth) : true)).map(r => (
+                  <div key={r.id} className="bg-white p-5 rounded-xl border shadow-sm flex flex-col gap-3 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-yellow-400"></div>
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl shrink-0">
+                        {r.reviewerName.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <h5 className="font-bold text-lg text-gray-800">{r.reviewerName}</h5>
+                        <div className="flex gap-1 text-yellow-400 my-1 text-xs">
+                          ★★★★★
+                        </div>
+                        <p className="text-gray-700 text-sm mt-2 leading-relaxed">"{r.comment}"</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-1 font-medium bg-gray-50 px-2 py-1 rounded">
+                        <CalendarClock size={12}/> {r.date} - {r.time}
+                      </div>
+                      {r.linkedEmployeeIds && r.linkedEmployeeIds.length > 0 ? (
+                        <div className="flex items-center gap-1 font-bold text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100">
+                          <Users size={12}/> {r.linkedEmployeeIds.map(id => users.find(u => u.id === id)?.name).join('، ')}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100">
+                          غير مرتبط
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {reviews.filter(r => r.branch === selectedTimelineBranch).length === 0 && (
+                  <div className="col-span-full text-center text-gray-500 py-12 border-dashed border-2 rounded-xl flex flex-col items-center gap-3">
+                    <BarChart3 size={48} className="text-gray-300"/>
+                    <p className="font-bold text-lg">لا توجد تقييمات محقونة لهذا الفرع بعد.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -472,6 +663,11 @@ export const SystemAdminDashboard: React.FC = () => {
           className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'notes' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <MessageSquareWarning size={24} className={activeTab === 'notes' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الملاحظات</span>
+        </button>
+        <button onClick={() => setActiveTab('stats')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'stats' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <BarChart3 size={24} className={activeTab === 'stats' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">الإحصائيات</span>
         </button>
       </div>
     </div>

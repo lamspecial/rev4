@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext';
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const { users, branchSettings, timeline, addTimelineComment, addTimelineEvent } = useData();
+  const { users, branchSettings, timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, updateReview } = useData();
   
   const [activeTab, setActiveTab] = useState<'shift' | 'timeline' | 'employees'>('shift');
   
@@ -20,6 +20,11 @@ export const AdminDashboard: React.FC = () => {
   // Timeline for this branch
   const branchTimeline = timeline.filter(t => t.branch === user?.branch);
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
+  const [unselectedEmpIds, setUnselectedEmpIds] = useState<string[]>([]);
+  const [linkingReviewId, setLinkingReviewId] = useState<string | null>(null);
+  const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
+  
+  const allAvailableEmployees = users.filter(u => (u.branch === user?.branch || u.branch === 'موظفة خارجية') && u.role === 'employee');
 
   const handleAddOutsourced = (emp: typeof users[0]) => {
     if (!addedOutsourced.find(e => e.id === emp.id)) {
@@ -30,11 +35,20 @@ export const AdminDashboard: React.FC = () => {
 
   const handleStartShift = () => {
     const time = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    
+    const activeEmployees = [
+      ...branchEmployees.filter(e => !unselectedEmpIds.includes(e.id)),
+      ...addedOutsourced
+    ].map(e => ({ id: e.id, name: e.name }));
+
     addTimelineEvent({
       branch: user?.branch || '',
       type: 'shift',
       title: 'تم بدء شفت جديد',
       time: time,
+      date: date,
+      employees: activeEmployees
     });
     alert('تم بدء الشفت وتحديث الخط الزمني');
   };
@@ -44,6 +58,16 @@ export const AdminDashboard: React.FC = () => {
       addTimelineComment(id, commentInput[id]);
       setCommentInput({ ...commentInput, [id]: '' });
     }
+  };
+
+  const handleSaveLinking = (timelineId: string, reviewId: string | undefined) => {
+    const selectedEmps = allAvailableEmployees.filter(u => linkingSelection.includes(u.id)).map(e => ({ id: e.id, name: e.name }));
+    updateTimelineEvent(timelineId, { employees: selectedEmps });
+    if (reviewId) {
+      updateReview(reviewId, { linkedEmployeeIds: linkingSelection });
+    }
+    setLinkingReviewId(null);
+    setLinkingSelection([]);
   };
 
   const activeOutsourced = outsourcedEmployees.filter(emp => emp.name.includes(searchQuery));
@@ -78,7 +102,18 @@ export const AdminDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {branchEmployees.map((emp) => (
                     <label key={emp.id} className="flex items-center space-x-3 space-x-reverse p-4 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors">
-                      <input type="checkbox" defaultChecked className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+                      <input 
+                        type="checkbox" 
+                        checked={!unselectedEmpIds.includes(emp.id)} 
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setUnselectedEmpIds(prev => prev.filter(id => id !== emp.id));
+                          } else {
+                            setUnselectedEmpIds(prev => [...prev, emp.id]);
+                          }
+                        }}
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" 
+                      />
                       <span className="font-bold text-gray-800">{emp.name}</span>
                     </label>
                   ))}
@@ -163,8 +198,8 @@ export const AdminDashboard: React.FC = () => {
               <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
                 {branchTimeline.map((item) => (
                   <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${item.type === 'gap' ? 'bg-red-500' : 'bg-green-500'}`}>
-                      {item.type === 'gap' ? <AlertOctagon size={16} className="text-white" /> : <CalendarClock size={16} className="text-white" />}
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${item.type === 'gap' ? 'bg-red-500' : item.type === 'review' ? 'bg-yellow-500' : 'bg-green-500'}`}>
+                      {item.type === 'gap' ? <AlertOctagon size={16} className="text-white" /> : item.type === 'review' ? <span className="text-white text-xs font-bold">★</span> : <CalendarClock size={16} className="text-white" />}
                     </div>
                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border shadow-sm">
                       <div className="flex items-center justify-between mb-1">
@@ -189,6 +224,56 @@ export const AdminDashboard: React.FC = () => {
                               />
                               <button onClick={() => handleAddComment(item.id)} className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
                                 <Send size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {item.type === 'review' && (
+                        <div className="mt-3 border-t pt-3">
+                          {item.comment && <p className="text-sm bg-gray-50 p-2 rounded text-gray-700 italic border-r-2 border-yellow-500 mb-2">"{item.comment}"</p>}
+                          
+                          {linkingReviewId === item.id ? (
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
+                              <p className="text-sm font-bold mb-2">تحديد الموظفات المرتبطات بهذا التقييم:</p>
+                              <div className="grid grid-cols-2 gap-2 mb-3 max-h-32 overflow-y-auto">
+                                {allAvailableEmployees.map(emp => (
+                                  <label key={emp.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={linkingSelection.includes(emp.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) setLinkingSelection(prev => [...prev, emp.id]);
+                                        else setLinkingSelection(prev => prev.filter(id => id !== emp.id));
+                                      }}
+                                    />
+                                    {emp.name}
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => handleSaveLinking(item.id, item.reviewId)} className="bg-green-600 text-white text-xs px-3 py-1 rounded font-bold">حفظ الربط</button>
+                                <button onClick={() => setLinkingReviewId(null)} className="bg-gray-400 text-white text-xs px-3 py-1 rounded">إلغاء</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="text-sm">
+                                {item.employees && item.employees.length > 0 ? (
+                                  <span className="text-green-600 font-bold">الموظفات: {item.employees.map(e => e.name).join('، ')}</span>
+                                ) : (
+                                  <span className="text-red-500 font-bold">التقييم غير مرتبط بأي موظفة!</span>
+                                )}
+                              </div>
+                              <button 
+                                onClick={() => { 
+                                  setLinkingReviewId(item.id); 
+                                  setLinkingSelection(item.employees ? item.employees.map(e => e.id) : []); 
+                                }}
+                                className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200"
+                              >
+                                تعديل الربط
                               </button>
                             </div>
                           )}
