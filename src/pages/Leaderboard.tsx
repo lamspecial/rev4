@@ -130,7 +130,7 @@ export const Leaderboard: React.FC = () => {
         <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="w-full h-8 sm:h-12 text-blue-500 fill-current">
           <path d="M0,20 Q50,0 100,20 Z" />
         </svg>
-        <div className="bg-blue-500 w-full flex-1 flex flex-col items-center justify-center text-white pointer-events-auto pb-6">
+        <div className="bg-blue-500 w-full flex-1 flex flex-col items-center justify-center text-white pointer-events-auto pb-24 sm:pb-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeEmp?.id + '-bottom'}
