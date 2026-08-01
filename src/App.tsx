@@ -1,19 +1,33 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Leaderboard } from './pages/Leaderboard';
-import { AdminDashboard } from './pages/AdminDashboard';
+import { Login } from './pages/Login';
+import { Dashboard } from './pages/Dashboard';
+import { useAuth } from './context/AuthContext';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
-        {/* Public Route */}
         <Route path="/" element={<Leaderboard />} />
-        
-        {/* Admin Route */}
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/login" element={<Login />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        {/* Redirect old admin route to unified dashboard */}
+        <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

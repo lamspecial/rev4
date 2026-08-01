@@ -1,135 +1,261 @@
 import React, { useState } from 'react';
-import { CalendarClock, AlertOctagon, ShieldAlert, Users } from 'lucide-react';
+import { CalendarClock, LogOut, Search, Plus, Activity, Users, Send, AlertOctagon } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 
 export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'shifts' | 'complaints' | 'safety'>('shifts');
+  const { user, logout } = useAuth();
+  const { users, branchSettings, timeline, addTimelineComment, addTimelineEvent } = useData();
+  
+  const [activeTab, setActiveTab] = useState<'shift' | 'timeline' | 'employees'>('shift');
+  
+  // Local branch employees
+  const branchEmployees = users.filter(u => u.branch === user?.branch && u.role === 'employee');
+  
+  // Outsourced employees search
+  const outsourcedEmployees = users.filter(u => u.branch === 'موظفة خارجية');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [addedOutsourced, setAddedOutsourced] = useState<typeof users>([]);
+
+  // Timeline for this branch
+  const branchTimeline = timeline.filter(t => t.branch === user?.branch);
+  const [commentInput, setCommentInput] = useState<Record<string, string>>({});
+
+  const handleAddOutsourced = (emp: typeof users[0]) => {
+    if (!addedOutsourced.find(e => e.id === emp.id)) {
+      setAddedOutsourced([...addedOutsourced, emp]);
+    }
+    setSearchQuery('');
+  };
+
+  const handleStartShift = () => {
+    const time = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    addTimelineEvent({
+      branch: user?.branch || '',
+      type: 'shift',
+      title: 'تم بدء شفت جديد',
+      time: time,
+    });
+    alert('تم بدء الشفت وتحديث الخط الزمني');
+  };
+
+  const handleAddComment = (id: string) => {
+    if (commentInput[id]) {
+      addTimelineComment(id, commentInput[id]);
+      setCommentInput({ ...commentInput, [id]: '' });
+    }
+  };
+
+  const activeOutsourced = outsourcedEmployees.filter(emp => emp.name.includes(searchQuery));
+  const currentBranchSettings = branchSettings[user?.branch || ''] || { start: '16:00', end: '00:00' };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-alexandria pb-20" dir="rtl">
       {/* Header */}
       <header className="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
-        <h1 className="text-2xl font-bold">لوحة تحكم الإدارة</h1>
-        <div className="flex space-x-2 space-x-reverse">
-          <span className="bg-blue-800 px-3 py-1 rounded-full text-sm">فرع المملكة</span>
-        </div>
+        <h1 className="text-xl font-bold">لوحة إدارة فرع {user?.branch}</h1>
+        <button onClick={logout} className="p-2 hover:bg-blue-700 rounded-full flex items-center gap-2">
+          تسجيل الخروج
+          <LogOut size={20} />
+        </button>
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 p-4 max-w-5xl mx-auto w-full flex flex-col md:flex-row gap-6 mt-4">
-        
-        {/* Sidebar / Tabs */}
-        <div className="w-full md:w-64 flex flex-col space-y-2 bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-fit">
-          <button 
-            onClick={() => setActiveTab('shifts')}
-            className={`flex items-center space-x-3 space-x-reverse p-3 rounded-lg font-semibold transition-colors ${activeTab === 'shifts' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          >
-            <CalendarClock size={20} />
-            <span>إدارة الورديات</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('complaints')}
-            className={`flex items-center space-x-3 space-x-reverse p-3 rounded-lg font-semibold transition-colors ${activeTab === 'complaints' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          >
-            <AlertOctagon size={20} />
-            <span>تسجيل الشكاوى</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('safety')}
-            className={`flex items-center space-x-3 space-x-reverse p-3 rounded-lg font-semibold transition-colors ${activeTab === 'safety' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-          >
-            <ShieldAlert size={20} />
-            <span>ملاحظات السلامة</span>
-          </button>
-          <hr className="my-2" />
-          <button className="flex items-center space-x-3 space-x-reverse p-3 rounded-lg font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
-            <Users size={20} />
-            <span>الموظفات (إعدادات)</span>
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="flex-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          {activeTab === 'shifts' && (
+      <div className="flex-1 p-4 max-w-7xl mx-auto w-full">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 overflow-x-auto min-h-[75vh]">
+          
+          {activeTab === 'shift' && (
             <div>
-              <h2 className="text-xl font-bold mb-4 border-b pb-2">جدول الورديات اليومي</h2>
-              <p className="text-gray-500 mb-6">قم بتحديد أوقات عمل الموظفات لهذا اليوم لكي يتم ربط التقييمات تلقائياً بهن.</p>
+              <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                <CalendarClock className="text-blue-600" size={28} />
+                <h2 className="text-2xl font-bold text-gray-800">إدارة الشفت الحالي</h2>
+              </div>
               
-              <div className="space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <select className="flex-1 p-2 border rounded-md">
-                    <option>اختر الموظفة...</option>
-                    <option>فاطمة الحارثي</option>
-                    <option>سارة أحمد</option>
-                  </select>
-                  <input type="time" className="p-2 border rounded-md" aria-label="من الساعة" />
-                  <input type="time" className="p-2 border rounded-md" aria-label="إلى الساعة" />
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-md font-bold hover:bg-blue-700">إضافة وردية</button>
-                </div>
+              <p className="text-gray-500 mb-8">حددي الموظفات المتواجدات حالياً في الفرع لربط التقييمات بهن.</p>
 
-                {/* Example of empty schedule as requested */}
-                <div className="mt-8">
-                  <h3 className="font-bold mb-2">ورديات اليوم (الأوقات الفارغة تظهر)</h3>
-                  <table className="w-full text-right border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50 border-y">
-                        <th className="p-3">الموظفة</th>
-                        <th className="p-3">من</th>
-                        <th className="p-3">إلى</th>
-                        <th className="p-3">الحالة</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="p-3">فاطمة الحارثي</td>
-                        <td className="p-3">04:00 م</td>
-                        <td className="p-3">12:00 ص</td>
-                        <td className="p-3 text-green-600 font-bold">مغطاة</td>
-                      </tr>
-                      <tr className="border-b bg-red-50">
-                        <td className="p-3 text-red-500 font-bold">-- لا يوجد موظفة --</td>
-                        <td className="p-3 text-red-500">12:00 ص</td>
-                        <td className="p-3 text-red-500">08:00 ص</td>
-                        <td className="p-3 text-red-500 font-bold">فارغ</td>
-                      </tr>
-                    </tbody>
-                  </table>
+              <div className="mb-8">
+                <h3 className="font-bold text-lg mb-4 text-gray-700">موظفات الفرع</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {branchEmployees.map((emp) => (
+                    <label key={emp.id} className="flex items-center space-x-3 space-x-reverse p-4 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors">
+                      <input type="checkbox" defaultChecked className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+                      <span className="font-bold text-gray-800">{emp.name}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-            </div>
-          )}
 
-          {activeTab === 'complaints' && (
-            <div>
-              <h2 className="text-xl font-bold mb-4 border-b pb-2">تسجيل الشكاوى اليدوية</h2>
-              <p className="text-gray-500 mb-6">الشكوى تخصم من الرصيد الافتراضي بناءً على عدد أيام عمل الموظفة.</p>
-              
-              <div className="space-y-4">
-                <select className="w-full p-2 border rounded-md">
-                  <option>اختر الموظفة الموجهة لها الشكوى...</option>
-                </select>
-                <input type="number" placeholder="عدد أيام العمل في هذا الشهر" className="w-full p-2 border rounded-md" />
-                <textarea placeholder="تفاصيل الشكوى (اختياري)" className="w-full p-2 border rounded-md h-24"></textarea>
-                <button className="bg-red-600 text-white px-4 py-2 rounded-md font-bold hover:bg-red-700">تسجيل وإضافة الخصم</button>
+              <div className="mb-8 p-6 bg-blue-50 rounded-xl border border-blue-100">
+                <h3 className="font-bold text-lg mb-2 text-blue-900">موظفات المصدر الخارجي</h3>
+                <p className="text-sm text-blue-700 mb-4">ابحثي عن موظفة خارجية لضمها لشفت الفرع اليوم</p>
+                
+                <div className="relative mb-4">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                  <input 
+                    type="text" 
+                    placeholder="بحث بالاسم..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full p-3 pr-10 border rounded-lg"
+                  />
+                  
+                  {searchQuery && (
+                    <div className="absolute top-full right-0 w-full bg-white shadow-xl rounded-lg mt-1 border z-10">
+                      {activeOutsourced.length > 0 ? activeOutsourced.map(emp => (
+                        <button 
+                          key={emp.id}
+                          onClick={() => handleAddOutsourced(emp)}
+                          className="w-full text-right p-3 hover:bg-blue-50 border-b flex justify-between items-center"
+                        >
+                          <span className="font-bold">{emp.name}</span>
+                          <Plus size={18} className="text-blue-600" />
+                        </button>
+                      )) : (
+                        <div className="p-3 text-gray-500 text-sm">لا توجد نتائج</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {addedOutsourced.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {addedOutsourced.map(emp => (
+                      <div key={emp.id} className="bg-white border border-blue-200 px-4 py-2 rounded-full text-sm font-bold text-blue-800 flex items-center gap-2">
+                        {emp.name}
+                        <button onClick={() => setAddedOutsourced(addedOutsourced.filter(e => e.id !== emp.id))} className="text-red-400 hover:text-red-600">×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-6">
+                <div className="flex gap-4 mb-6">
+                  <div className="flex-1">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">وقت البدء (الافتراضي)</label>
+                    <input type="time" defaultValue={currentBranchSettings.start} className="w-full p-3 border rounded-lg bg-gray-50" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">وقت الانتهاء</label>
+                    <input type="time" defaultValue={currentBranchSettings.end} className="w-full p-3 border rounded-lg bg-gray-50" />
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleStartShift}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-lg shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
+                >
+                  <CalendarClock size={24} />
+                  بدء الشفت وتسجيل الوقت
+                </button>
               </div>
             </div>
           )}
 
-          {activeTab === 'safety' && (
+          {activeTab === 'timeline' && (
             <div>
-              <h2 className="text-xl font-bold mb-4 border-b pb-2">ملاحظات السلامة</h2>
-              <p className="text-gray-500 mb-6">كل ملاحظة سلامة تخصم نقطة كاملة من رصيد السلامة الافتراضي.</p>
-              
-              <div className="space-y-4">
-                <select className="w-full p-2 border rounded-md">
-                  <option>اختر الموظفة المخالفة للسلامة...</option>
-                </select>
-                <textarea placeholder="وصف ملاحظة السلامة" className="w-full p-2 border rounded-md h-24"></textarea>
-                <input type="url" placeholder="رابط التقييم المتعلق بالسلامة (إن وجد)" className="w-full p-2 border rounded-md" />
-                <button className="bg-orange-600 text-white px-4 py-2 rounded-md font-bold hover:bg-orange-700">تسجيل ملاحظة السلامة</button>
+              <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                <Activity className="text-blue-600" size={28} />
+                <h2 className="text-2xl font-bold text-gray-800">الخط الزمني</h2>
+              </div>
+              <p className="text-gray-500 mb-6">يظهر هنا تسلسل الشفتات والفترات غير المغطاة (الثغرات).</p>
+
+              <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                {branchTimeline.map((item) => (
+                  <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${item.type === 'gap' ? 'bg-red-500' : 'bg-green-500'}`}>
+                      {item.type === 'gap' ? <AlertOctagon size={16} className="text-white" /> : <CalendarClock size={16} className="text-white" />}
+                    </div>
+                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border shadow-sm">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : 'text-green-600'}`}>{item.title}</h4>
+                        <time className="text-xs font-medium text-gray-500">{item.time}</time>
+                      </div>
+                      
+                      {item.type === 'gap' && (
+                        <div className="mt-3 border-t pt-3">
+                          {item.comment ? (
+                            <p className="text-sm bg-gray-50 p-2 rounded text-gray-700 italic border-r-2 border-red-500">
+                              {item.title.includes('اعتراض') ? 'الاعتراض: ' : 'تعليق المديرة: '} {item.comment}
+                            </p>
+                          ) : (
+                            <div className="flex gap-2">
+                              <input 
+                                type="text"
+                                placeholder="اكتبي تعليق للإدارة (سبب النقص)..."
+                                value={commentInput[item.id] || ''}
+                                onChange={(e) => setCommentInput({ ...commentInput, [item.id]: e.target.value })}
+                                className="flex-1 text-sm p-2 border rounded"
+                              />
+                              <button onClick={() => handleAddComment(item.id)} className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
+                                <Send size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {branchTimeline.length === 0 && <p className="text-center text-gray-500 py-10">لا يوجد أحداث في الخط الزمني بعد.</p>}
               </div>
             </div>
           )}
+
+          {activeTab === 'employees' && (
+            <div>
+              <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                <Users className="text-blue-600" size={28} />
+                <h2 className="text-2xl font-bold text-gray-800">موظفات الفرع</h2>
+              </div>
+              <p className="text-gray-500 mb-6">قائمة الموظفات المسجلات في فرعك (للعرض فقط).</p>
+              
+              <div className="grid gap-4">
+                {branchEmployees.map(emp => (
+                  <div key={emp.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 bg-white shrink-0">
+                      <img src={emp.imageUrl} alt={emp.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-800 text-lg">{emp.name}</p>
+                      <p className="text-sm text-gray-500">إيجابي: <span className="text-green-600 font-bold">{emp.stats.positive}</span> | سلبي: <span className="text-red-600 font-bold">{emp.stats.negative}</span></p>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-2xl font-extrabold text-blue-600">{emp.points}</p>
+                      <p className="text-xs text-gray-400">نقاط</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 w-full bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 flex justify-around items-center p-3">
+        <button 
+          onClick={() => setActiveTab('shift')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'shift' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          <CalendarClock size={24} className={activeTab === 'shift' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">الشفت</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('timeline')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'timeline' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          <Activity size={24} className={activeTab === 'timeline' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">الخط الزمني</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('employees')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'employees' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          <Users size={24} className={activeTab === 'employees' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">الموظفات</span>
+        </button>
       </div>
     </div>
   );

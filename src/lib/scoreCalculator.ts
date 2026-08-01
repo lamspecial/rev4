@@ -1,4 +1,4 @@
-import { Employee } from '../types';
+import type { Employee } from '../types';
 
 export interface ReviewDoc {
   id: string;
@@ -59,7 +59,7 @@ export function calculateEmployeeScore(
   if (complaintsScore < 0) complaintsScore = 0;
 
   // 3. Process Safety Notes
-  safetyNotes.forEach(note => {
+  safetyNotes.forEach(() => {
     safetyScore -= 1;
   });
   if (safetyScore < 0) safetyScore = 0;
