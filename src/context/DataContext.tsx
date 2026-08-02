@@ -29,6 +29,8 @@ export interface TimelineEvent {
 interface DataContextType {
   users: UserAccount[];
   updateUser: (id: string, updates: Partial<UserAccount>) => void;
+  addUser: (user: Omit<UserAccount, 'points' | 'reviewsCount'>) => void;
+  removeUser: (id: string) => void;
   branchSettings: Record<string, { start: string; end: string; googleApi?: string; nextDayTime?: string }>;
   updateBranchSettings: (branch: string, start: string, end: string, googleApi?: string, nextDayTime?: string) => void;
   timeline: TimelineEvent[];
@@ -151,28 +153,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
   };
 
+  const addUser = (newUser: Omit<UserAccount, 'points' | 'reviewsCount'>) => {
+    const userWithDefaults: UserAccount = { ...newUser, points: 0, reviewsCount: 0 };
+    const newUsers = [...users, userWithDefaults];
+    setUsers(newUsers);
+    try {
+      localStorage.setItem('app_users_v5', JSON.stringify(newUsers));
+    } catch (e) { console.error(e); }
+  };
+
+  const removeUser = (id: string) => {
+    const newUsers = users.filter(u => u.id !== id);
+    setUsers(newUsers);
+    try {
+      localStorage.setItem('app_users_v5', JSON.stringify(newUsers));
+    } catch (e) { console.error(e); }
+  };
+
   const updateReview = (id: string, updates: Partial<CustomerReview>) => {
-    let newReviews: CustomerReview[] = [];
-    setReviews(prev => {
-      newReviews = prev.map(r => r.id === id ? { ...r, ...updates } : r);
-      return newReviews;
-    });
-    setTimeout(() => {
-      try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
-    }, 0);
+    const newReviews = reviews.map(r => r.id === id ? { ...r, ...updates } : r);
+    setReviews(newReviews);
+    try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
   };
 
   const deleteReview = (id: string) => {
-    let newReviews: CustomerReview[] = [];
-    setReviews(prev => {
-      newReviews = prev.filter(r => r.id !== id);
-      return newReviews;
-    });
-    // Also delete from timeline
+    const newReviews = reviews.filter(r => r.id !== id);
+    setReviews(newReviews);
     deleteTimelineEvent(id);
-    setTimeout(() => {
-      try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
-    }, 0);
+    try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
   };
 
   const injectReviews = (branch: string, text: string) => {
@@ -324,7 +332,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <DataContext.Provider value={{ 
-      users: enrichedUsers, updateUser, branchSettings, updateBranchSettings, 
+      users: enrichedUsers, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, 
       timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
       reviews, injectReviews, updateReview, deleteReview 
     }}>

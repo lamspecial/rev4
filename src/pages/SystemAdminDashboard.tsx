@@ -7,7 +7,7 @@ import { formatDateTime } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
-  const { users, updateUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, updateReview, deleteReview } = useData();
+  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, updateReview, deleteReview } = useData();
   const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats'>('timeline');
 
   const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
@@ -24,6 +24,8 @@ export const SystemAdminDashboard: React.FC = () => {
   const [viewingReviewsMonth, setViewingReviewsMonth] = useState('');
   const [linkingReviewId, setLinkingReviewId] = useState<string | null>(null);
   const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editingTimeValue, setEditingTimeValue] = useState<string>('');
   const allAvailableEmployees = users.filter(u => (u.branch === selectedTimelineBranch || u.branch === 'موظفة خارجية') && u.role === 'employee');
 
   const handleInjectReviews = () => {
@@ -154,23 +156,19 @@ export const SystemAdminDashboard: React.FC = () => {
     if (!newEmpName.trim()) return;
     const id = 'emp_' + Date.now();
     const branch = selectedBranch === 'موظفة خارجية' ? 'موظفة خارجية' : selectedBranch;
-    const newUser = {
-      id, name: newEmpName, branch, email: '', role: 'employee' as const, imageUrl: employeeImg, points: 0, reviewsCount: 0,
+    addUser({
+      id, name: newEmpName.trim(), branch, email: '', role: 'employee', imageUrl: employeeImg,
       stats: { positive: 0, negative: 0, complaints: 0, safety: 0 }
-    };
-    // Save to localStorage directly
-    const savedUsers = JSON.parse(localStorage.getItem('app_users') || '[]');
-    savedUsers.push(newUser);
-    localStorage.setItem('app_users', JSON.stringify(savedUsers));
-    window.location.reload();
+    });
+    setNewEmpName('');
+    setShowAddForm(false);
+    showToast('تمت إضافة الموظفة بنجاح');
   };
 
   const handleRemoveEmployee = (id: string) => {
     if (!confirm('هل أنت متأكد من إزالة هذه الموظفة؟')) return;
-    const savedUsers = JSON.parse(localStorage.getItem('app_users') || '[]');
-    const filtered = savedUsers.filter((u: any) => u.id !== id);
-    localStorage.setItem('app_users', JSON.stringify(filtered));
-    window.location.reload();
+    removeUser(id);
+    showToast('تمت إزالة الموظفة');
   };
 
   const handleSubmitComplaint = () => {
@@ -322,7 +320,25 @@ export const SystemAdminDashboard: React.FC = () => {
                                   <span className="text-red-500 font-bold">التقييم غير مرتبط بأي موظفة!</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {editingTimeId === item.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input type="time" value={editingTimeValue} onChange={e => setEditingTimeValue(e.target.value)}
+                                      className="text-xs border rounded p-1" />
+                                    <button onClick={() => {
+                                      updateTimelineEvent(item.id, { time: editingTimeValue });
+                                      if (item.reviewId) updateReview(item.reviewId, { time: editingTimeValue });
+                                      setEditingTimeId(null);
+                                      showToast('تم تحديث وقت التقييم');
+                                    }} className="text-xs bg-green-600 text-white px-2 py-1 rounded font-bold">حفظ</button>
+                                    <button onClick={() => setEditingTimeId(null)} className="text-xs bg-gray-400 text-white px-2 py-1 rounded">إلغاء</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => { setEditingTimeId(item.id); setEditingTimeValue(item.time); }}
+                                    className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-200">
+                                    تعديل الوقت
+                                  </button>
+                                )}
                                 <button 
                                   onClick={() => { 
                                     setLinkingReviewId(item.id); 

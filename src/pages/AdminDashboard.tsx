@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CalendarClock, LogOut, Search, Plus, Activity, Users, Send, AlertOctagon } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { CalendarClock, LogOut, Search, Plus, Activity, Users, Send, AlertOctagon, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { formatDateTime } from '../lib/formatDate';
@@ -24,6 +24,14 @@ export const AdminDashboard: React.FC = () => {
   const [unselectedEmpIds, setUnselectedEmpIds] = useState<string[]>([]);
   const [linkingReviewId, setLinkingReviewId] = useState<string | null>(null);
   const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+  const [editingTimeValue, setEditingTimeValue] = useState<string>('');
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
   
   const allAvailableEmployees = users.filter(u => (u.branch === user?.branch || u.branch === 'موظفة خارجية') && u.role === 'employee');
 
@@ -51,7 +59,7 @@ export const AdminDashboard: React.FC = () => {
       date: date,
       employees: activeEmployees
     });
-    alert('تم بدء الشفت وتحديث الخط الزمني');
+    showToast('تم بدء الشفت وتحديث الخط الزمني');
   };
 
   const handleAddComment = (id: string) => {
@@ -76,6 +84,13 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-alexandria pb-20" dir="rtl">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-green-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-fade-in font-bold text-sm">
+          <CheckCircle2 size={20} />
+          {toast}
+        </div>
+      )}
       {/* Header */}
       <header className="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
         <h1 className="text-xl font-bold">لوحة إدارة فرع {user?.branch}</h1>
@@ -280,7 +295,7 @@ export const AdminDashboard: React.FC = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-between mt-2">
+                            <div className="mt-2 space-y-2">
                               <div className="text-sm">
                                 {item.employees && item.employees.length > 0 ? (
                                   <span className="text-green-600 font-bold">الموظفات: {item.employees.map(e => e.name).join('، ')}</span>
@@ -288,15 +303,35 @@ export const AdminDashboard: React.FC = () => {
                                   <span className="text-red-500 font-bold">التقييم غير مرتبط بأي موظفة!</span>
                                 )}
                               </div>
-                              <button 
-                                onClick={() => { 
-                                  setLinkingReviewId(item.id); 
-                                  setLinkingSelection(item.employees ? item.employees.map(e => e.id) : []); 
-                                }}
-                                className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200"
-                              >
-                                تعديل الربط
-                              </button>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {editingTimeId === item.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input type="time" value={editingTimeValue} onChange={e => setEditingTimeValue(e.target.value)}
+                                      className="text-xs border rounded p-1" />
+                                    <button onClick={() => {
+                                      updateTimelineEvent(item.id, { time: editingTimeValue });
+                                      if (item.reviewId) updateReview(item.reviewId, { time: editingTimeValue });
+                                      setEditingTimeId(null);
+                                      showToast('تم تحديث وقت التقييم');
+                                    }} className="text-xs bg-green-600 text-white px-2 py-1 rounded font-bold">حفظ</button>
+                                    <button onClick={() => setEditingTimeId(null)} className="text-xs bg-gray-400 text-white px-2 py-1 rounded">إلغاء</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => { setEditingTimeId(item.id); setEditingTimeValue(item.time); }}
+                                    className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-200">
+                                    تعديل الوقت
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => { 
+                                    setLinkingReviewId(item.id); 
+                                    setLinkingSelection(item.employees ? item.employees.map(e => e.id) : []); 
+                                  }}
+                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200"
+                                >
+                                  تعديل الربط
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
