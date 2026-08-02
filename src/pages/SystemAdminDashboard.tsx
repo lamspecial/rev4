@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2 } from 'lucide-react';
+import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2, Edit } from 'lucide-react';
 import employeeImg from '../assets/employee.png';
 import { formatDateTime } from '../lib/formatDate';
 
@@ -27,6 +27,9 @@ export const SystemAdminDashboard: React.FC = () => {
   const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
   const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
   const [editingTimeValue, setEditingTimeValue] = useState<string>('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteTitle, setEditingNoteTitle] = useState('');
+  const [editingNoteComment, setEditingNoteComment] = useState('');
   const allAvailableEmployees = users.filter(u => (u.branch === selectedTimelineBranch || u.branch === 'موظفة خارجية') && u.role === 'employee');
 
   const handleInjectReviews = () => {
@@ -598,13 +601,60 @@ export const SystemAdminDashboard: React.FC = () => {
               <h3 className="font-bold text-lg mb-4 text-gray-800 border-b pb-2">السجل الأخير</h3>
               <div className="grid gap-4">
                 {timeline.filter(t => t.title.includes('شكوى') || t.title.includes('سلامة') || t.title.includes('مخالفة')).slice(0, 10).map(t => (
-                  <div key={t.id} className={`p-4 rounded-xl border flex items-start gap-4 ${t.title.includes('شكوى') ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
-                    {t.title.includes('شكوى') ? <AlertOctagon className="text-red-500 shrink-0 mt-1" /> : <ShieldAlert className="text-orange-500 shrink-0 mt-1" />}
-                    <div>
-                      <h3 className={`font-bold ${t.title.includes('شكوى') ? 'text-red-700' : 'text-orange-700'}`}>{t.title}</h3>
-                      <p className="text-gray-600 text-sm mt-1">{t.comment}</p>
-                      <p className="text-xs text-gray-400 mt-2">{t.time} • {t.branch}</p>
+                  <div key={t.id} className={`p-4 rounded-xl border flex items-start justify-between gap-4 ${t.title.includes('شكوى') ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+                    <div className="flex items-start gap-4 flex-1">
+                      {t.title.includes('شكوى') ? <AlertOctagon className="text-red-500 shrink-0 mt-1" /> : <ShieldAlert className="text-orange-500 shrink-0 mt-1" />}
+                      <div className="flex-1 w-full">
+                        {editingNoteId === t.id ? (
+                          <div className="space-y-2 w-full pr-2">
+                            <input 
+                              type="text" 
+                              value={editingNoteTitle} 
+                              onChange={e => setEditingNoteTitle(e.target.value)} 
+                              className="w-full p-2 border rounded text-sm" 
+                            />
+                            <textarea 
+                              value={editingNoteComment} 
+                              onChange={e => setEditingNoteComment(e.target.value)} 
+                              className="w-full p-2 border rounded text-sm min-h-[80px]" 
+                            />
+                            <div className="flex gap-2">
+                              <button onClick={() => {
+                                updateTimelineEvent(t.id, { title: editingNoteTitle, comment: editingNoteComment });
+                                setEditingNoteId(null);
+                                showToast('تم تحديث الملاحظة');
+                              }} className="px-3 py-1 bg-green-600 text-white rounded text-xs">حفظ</button>
+                              <button onClick={() => setEditingNoteId(null)} className="px-3 py-1 bg-gray-500 text-white rounded text-xs">إلغاء</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className={`font-bold ${t.title.includes('شكوى') ? 'text-red-700' : 'text-orange-700'}`}>{t.title}</h3>
+                            <p className="text-gray-600 text-sm mt-1">{t.comment}</p>
+                            <p className="text-xs text-gray-400 mt-2">{t.time} • {t.branch}</p>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    {editingNoteId !== t.id && (
+                      <div className="flex gap-2 opacity-50 hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={() => {
+                          setEditingNoteId(t.id);
+                          setEditingNoteTitle(t.title);
+                          setEditingNoteComment(t.comment || '');
+                        }} className="text-blue-600 hover:text-blue-800 p-1 bg-blue-100 rounded">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => {
+                          if (confirm('هل أنت متأكد من حذف هذه الملاحظة؟')) {
+                            deleteTimelineEvent(t.id);
+                            showToast('تم الحذف بنجاح');
+                          }
+                        }} className="text-red-600 hover:text-red-800 p-1 bg-red-100 rounded">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {timeline.filter(t => t.title.includes('شكوى') || t.title.includes('سلامة') || t.title.includes('مخالفة')).length === 0 && (
