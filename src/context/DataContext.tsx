@@ -300,9 +300,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const enrichedUsers = React.useMemo(() => {
+    return users.map(user => {
+      if (user.role !== 'employee') return user;
+      
+      const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(user.id));
+      let positiveScore = 0;
+      let negativeScore = 2; // base score for negative
+      
+      empReviews.forEach(r => {
+        const rating = parseInt(r.rating) || 0;
+        const shareCount = r.linkedEmployeeIds.length || 1;
+        if (rating >= 4) {
+          positiveScore += (0.25 / shareCount);
+        } else {
+          negativeScore -= (0.5 / shareCount);
+        }
+      });
+
+      if (positiveScore > 5) positiveScore = 5;
+      
+      const calculatedPoints = positiveScore + negativeScore;
+      
+      return {
+        ...user,
+        points: calculatedPoints,
+        reviewsCount: empReviews.length
+      };
+    });
+  }, [users, reviews]);
+
   return (
     <DataContext.Provider value={{ 
-      users, updateUser, branchSettings, updateBranchSettings, 
+      users: enrichedUsers, updateUser, branchSettings, updateBranchSettings, 
       timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
       reviews, injectReviews, updateReview, deleteReview 
     }}>

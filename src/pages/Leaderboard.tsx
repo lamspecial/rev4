@@ -2,14 +2,16 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCreative, Autoplay } from 'swiper/modules';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ScrollText } from 'lucide-react';
+import { ScrollText, X } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/effect-creative';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useData } from '../context/DataContext';
+import { formatDateTime } from '../lib/formatDate';
 
 export const Leaderboard: React.FC = () => {
-  const { users } = useData();
+  const { users, reviews } = useData();
+  const [showBranchModal, setShowBranchModal] = useState(false);
   
   // Sort employees by points
   const sortedEmployees = users
@@ -148,7 +150,12 @@ export const Leaderboard: React.FC = () => {
                 </button>
               </EmployeeCard>
               
-              <h3 className="text-lg sm:text-xl font-medium mb-3">{activeEmp?.branch}</h3>
+              <button 
+                onClick={() => { setShowBranchModal(true); handleModalOpen(); }}
+                className="text-lg sm:text-xl font-medium mb-3 hover:underline bg-white/20 px-4 py-1 rounded-full"
+              >
+                {activeEmp?.branch}
+              </button>
 
               {/* Stats Row - Points left, Reviews right */}
               <div className="flex items-center justify-center gap-8 w-full mt-1">
@@ -166,6 +173,54 @@ export const Leaderboard: React.FC = () => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Branch Modal */}
+      <AnimatePresence>
+        {showBranchModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-alexandria touch-auto" dir="rtl">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => { setShowBranchModal(false); handleModalClose(); }}
+            />
+            <motion.div 
+              initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
+              className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
+                <h3 className="text-xl font-bold">تقييمات فرع {activeEmp?.branch}</h3>
+                <button 
+                  onClick={() => { setShowBranchModal(false); handleModalClose(); }}
+                  className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-3">
+                {reviews.filter(r => r.branch === activeEmp?.branch).map(r => (
+                  <div key={r.id} className="bg-white p-4 rounded-xl border shadow-sm relative">
+                    <div className="flex justify-between items-start">
+                      <div className="flex text-yellow-400 mb-2">★★★★★</div>
+                      <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">
+                        {formatDateTime(r.date, r.time)}
+                      </span>
+                    </div>
+                    <p className="text-gray-700 text-sm">"{r.comment}"</p>
+                    <p className="text-xs text-green-700 font-bold mt-2">
+                      {r.linkedEmployeeIds && r.linkedEmployeeIds.length > 0 
+                        ? `الموظفات: ${r.linkedEmployeeIds.map(id => users.find(u => u.id === id)?.name).join('، ')}`
+                        : 'غير مرتبط'}
+                    </p>
+                  </div>
+                ))}
+                {reviews.filter(r => r.branch === activeEmp?.branch).length === 0 && (
+                  <p className="text-center text-gray-500 py-10">لا توجد تقييمات لهذا الفرع.</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

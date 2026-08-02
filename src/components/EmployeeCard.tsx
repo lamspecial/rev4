@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { UserAccount } from '../lib/mockData';
 import { X, CalendarClock, Star, Clock } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useData } from '../context/DataContext';
+import { formatDateTime } from '../lib/formatDate';
 
 interface Props {
   employee: UserAccount;
@@ -13,6 +15,8 @@ interface Props {
 export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen, onModalClose }) => {
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'shifts'>('reviews');
+  const { reviews } = useData();
+  const employeeReviews = reviews.filter(r => r.linkedEmployeeIds.includes(employee.id));
 
   useEffect(() => {
     if (showModal) {
@@ -55,12 +59,15 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="bg-blue-600 p-4 sm:p-6 text-white flex justify-between items-center sticky top-0 z-10">
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold">{employee.name}</h3>
-                  <p className="text-blue-100 text-sm mb-1">{employee.branch}</p>
-                  <p className="text-xs bg-blue-500/50 inline-block px-2 py-1 rounded-md mt-1">إجمالي التقييمات: {employee.reviewsCount}</p>
-                </div>
+                <div className="bg-blue-600 p-4 sm:p-6 text-white flex justify-between items-center sticky top-0 z-10">
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-bold">{employee.name}</h3>
+                    <p className="text-blue-100 text-sm mb-1">{employee.branch}</p>
+                    <div className="flex gap-2 mt-1">
+                      <p className="text-xs bg-blue-500/50 px-2 py-1 rounded-md">النقاط: {employee.points.toFixed(2)}</p>
+                      <p className="text-xs bg-blue-500/50 px-2 py-1 rounded-md">إجمالي التقييمات: {employee.reviewsCount}</p>
+                    </div>
+                  </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); setShowModal(false); }}
                   className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full transition-colors self-start"
@@ -91,25 +98,23 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
               <div className="p-4 sm:p-6 bg-gray-50 h-[50vh] overflow-y-auto">
                 {activeTab === 'reviews' ? (
                   <div className="space-y-3">
-                    <div className="bg-white p-4 rounded-xl border shadow-sm">
-                      <div className="flex text-yellow-400 mb-2">★★★★★</div>
-                      <p className="text-gray-700 text-sm">"خدمة ممتازة وسريعة، شكراً لك على حسن التعامل"</p>
-                      {employee.branch === 'موظفة خارجية' && (
-                        <p className="text-xs text-blue-600 mt-2 font-bold">الفرع: جاليري</p>
-                      )}
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border shadow-sm">
-                      <div className="flex text-yellow-400 mb-2">★★★★☆</div>
-                      <p className="text-gray-700 text-sm">"تجربة رائعة وتجاوب سريع."</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border shadow-sm">
-                      <div className="flex text-yellow-400 mb-2">★★★★★</div>
-                      <p className="text-gray-700 text-sm">"من أفضل الموظفات، أنصح بالتعامل معها."</p>
-                      <p className="text-xs text-gray-500 mt-2 font-medium">(اكتسبته مع فاطمة ورغد)</p>
-                      {employee.branch === 'موظفة خارجية' && (
-                        <p className="text-xs text-blue-600 mt-1 font-bold">الفرع: سلام</p>
-                      )}
-                    </div>
+                    {employeeReviews.map(r => (
+                      <div key={r.id} className="bg-white p-4 rounded-xl border shadow-sm relative">
+                        <div className="flex justify-between items-start">
+                          <div className="flex text-yellow-400 mb-2">★★★★★</div>
+                          <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">
+                            {formatDateTime(r.date, r.time)}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 text-sm">"{r.comment}"</p>
+                        {employee.branch === 'موظفة خارجية' && (
+                          <p className="text-xs text-blue-600 mt-2 font-bold">الفرع: {r.branch}</p>
+                        )}
+                      </div>
+                    ))}
+                    {employeeReviews.length === 0 && (
+                      <p className="text-center text-gray-500 py-10">لا توجد تقييمات مكتسبة بعد.</p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CalendarClock, LogOut, Search, Plus, Activity, Users, Send, AlertOctagon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { formatDateTime } from '../lib/formatDate';
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -204,7 +205,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border shadow-sm">
                       <div className="flex items-center justify-between mb-1">
                         <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : 'text-green-600'}`}>{item.title}</h4>
-                        <time className="text-xs font-medium text-gray-500">{item.time}</time>
+                        <time className="text-xs font-medium text-gray-500">{item.date ? formatDateTime(item.date, item.time) : item.time}</time>
                       </div>
                       
                       {item.type === 'gap' && (

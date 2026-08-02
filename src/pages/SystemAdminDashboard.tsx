@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2 } from 'lucide-react';
 import employeeImg from '../assets/employee.png';
+import { formatDateTime } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
@@ -265,7 +266,7 @@ export const SystemAdminDashboard: React.FC = () => {
                       <div className="flex items-center justify-between mb-1">
                         <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : item.type === 'review' ? 'text-yellow-600' : 'text-green-600'}`}>{item.title}</h4>
                         <div className="flex items-center gap-2">
-                          <time className="text-xs font-medium text-gray-500">{item.date} {item.time}</time>
+                          <time className="text-xs font-medium text-gray-500">{item.date ? formatDateTime(item.date, item.time) : item.time}</time>
                           <button onClick={() => handleDeleteTimelineEvent(item.id, item.reviewId)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
                         </div>
                       </div>
@@ -317,15 +318,23 @@ export const SystemAdminDashboard: React.FC = () => {
                                   <span className="text-red-500 font-bold">التقييم غير مرتبط بأي موظفة!</span>
                                 )}
                               </div>
-                              <button 
-                                onClick={() => { 
-                                  setLinkingReviewId(item.id); 
-                                  setLinkingSelection(item.employees ? item.employees.map(e => e.id) : []); 
-                                }}
-                                className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200"
-                              >
-                                تعديل الربط
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => { 
+                                    setLinkingReviewId(item.id); 
+                                    setLinkingSelection(item.employees ? item.employees.map(e => e.id) : []); 
+                                  }}
+                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200"
+                                >
+                                  تعديل الربط
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteTimelineEvent(item.id, item.reviewId)}
+                                  className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold hover:bg-red-200 flex items-center gap-1"
+                                >
+                                  <Trash2 size={12} /> حذف التقييم
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -550,7 +559,19 @@ export const SystemAdminDashboard: React.FC = () => {
                   </select>
                 </div>
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-blue-800 mb-2">النص البرمجي للتقييمات</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-blue-800">النص البرمجي للتقييمات</label>
+                    <button 
+                      onClick={() => {
+                        const template = `معرف التقييم: AbFvOqnT5uVK9_z5olmKcjV1GqNFGJoL5u9rUe2jxJbgdcAHlY-lLODv3Or2Eg6a_f2xndM-cYzl\nاسم المقيم: علي احمد\nالتقييم: 5 نجوم\nالتعليق: مكان جميل جدا\nالتاريخ: 06-07-2026\nالوقت: 14:23`;
+                        navigator.clipboard.writeText(template);
+                        showToast('تم نسخ النموذج');
+                      }}
+                      className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-bold flex items-center gap-1"
+                    >
+                      📋 نسخ النموذج
+                    </button>
+                  </div>
                   <textarea 
                     value={reviewsText} 
                     onChange={e => setReviewsText(e.target.value)}
@@ -615,7 +636,7 @@ export const SystemAdminDashboard: React.FC = () => {
                     </div>
                     <div className="mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                       <div className="flex items-center gap-1 font-medium bg-gray-50 px-2 py-1 rounded">
-                        <CalendarClock size={12}/> {r.date} - {r.time}
+                        <CalendarClock size={12}/> {formatDateTime(r.date, r.time)}
                       </div>
                       {r.linkedEmployeeIds && r.linkedEmployeeIds.length > 0 ? (
                         <div className="flex items-center gap-1 font-bold text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100">
