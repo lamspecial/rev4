@@ -19,6 +19,7 @@ export interface TimelineEvent {
   type: 'shift' | 'gap' | 'review';
   title: string;
   time: string;
+  endTime?: string;
   date?: string;
   comment?: string;
   employees?: { id: string, name: string }[];
@@ -28,8 +29,8 @@ export interface TimelineEvent {
 interface DataContextType {
   users: UserAccount[];
   updateUser: (id: string, updates: Partial<UserAccount>) => void;
-  branchSettings: Record<string, { start: string; end: string; googleApi?: string }>;
-  updateBranchSettings: (branch: string, start: string, end: string, googleApi?: string) => void;
+  branchSettings: Record<string, { start: string; end: string; googleApi?: string; nextDayTime?: string }>;
+  updateBranchSettings: (branch: string, start: string, end: string, googleApi?: string, nextDayTime?: string) => void;
   timeline: TimelineEvent[];
   addTimelineComment: (id: string, comment: string) => void;
   addTimelineEvent: (event: Omit<TimelineEvent, 'id'>) => void;
@@ -45,7 +46,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
-  const [branchSettings, setBranchSettings] = useState<Record<string, { start: string; end: string; googleApi?: string }>>({});
+  const [branchSettings, setBranchSettings] = useState<Record<string, { start: string; end: string; googleApi?: string; nextDayTime?: string }>>({});
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [reviews, setReviews] = useState<CustomerReview[]>([]);
 
@@ -113,9 +114,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 0);
   };
 
-  const updateBranchSettings = (branch: string, start: string, end: string, googleApi?: string) => {
+  const updateBranchSettings = (branch: string, start: string, end: string, googleApi?: string, nextDayTime?: string) => {
     const current = branchSettings[branch] || {};
-    const newSettings = { ...branchSettings, [branch]: { start, end, googleApi: googleApi !== undefined ? googleApi : current.googleApi } };
+    const newSettings = { ...branchSettings, [branch]: { start, end, googleApi: googleApi !== undefined ? googleApi : current.googleApi, nextDayTime: nextDayTime !== undefined ? nextDayTime : current.nextDayTime } };
     setBranchSettings(newSettings);
     try {
       localStorage.setItem('app_branch_settings', JSON.stringify(newSettings));
@@ -219,14 +220,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const rTime = parseInt(newReview.time.replace(':', ''));
             const possibleShifts = timeline.filter(t => t.branch === branch && t.type === 'shift' && t.employees && t.employees.length > 0);
             
-            // Just take the latest shift before this time
+            // Try to match strictly within shift bounds (supporting midnight crossing)
             let bestShift: TimelineEvent | null = null;
-            let maxTime = -1;
             for (const s of possibleShifts) {
               const sTime = parseInt(s.time.replace(':', ''));
-              if (sTime <= rTime && sTime > maxTime) {
-                maxTime = sTime;
-                bestShift = s;
+              const eTimeStr = s.endTime || '23:59';
+              const eTime = parseInt(eTimeStr.replace(':', ''));
+              
+              if (eTime < sTime) { // Crosses midnight
+                if (rTime >= sTime || rTime <= eTime) {
+                  bestShift = s; break;
+                }
+              } else { // Same day
+                if (rTime >= sTime && rTime <= eTime) {
+                  bestShift = s; break;
+                }
+              }
+            }
+
+            // Fallback: Just take the latest shift before this time
+            if (!bestShift) {
+              let maxTime = -1;
+              for (const s of possibleShifts) {
+                const sTime = parseInt(s.time.replace(':', ''));
+                if (sTime <= rTime && sTime > maxTime) {
+                  maxTime = sTime;
+                  bestShift = s;
+                }
               }
             }
 

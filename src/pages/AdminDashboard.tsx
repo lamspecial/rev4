@@ -6,7 +6,7 @@ import { formatDateTime } from '../lib/formatDate';
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const { users, branchSettings, timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, updateReview } = useData();
+  const { users, branchSettings, updateBranchSettings, timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, updateReview } = useData();
   
   const [activeTab, setActiveTab] = useState<'shift' | 'timeline' | 'employees'>('shift');
   
@@ -35,7 +35,6 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleStartShift = () => {
-    const time = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
     const date = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     
     const activeEmployees = [
@@ -47,7 +46,8 @@ export const AdminDashboard: React.FC = () => {
       branch: user?.branch || '',
       type: 'shift',
       title: 'تم بدء شفت جديد',
-      time: time,
+      time: currentBranchSettings.start,
+      endTime: currentBranchSettings.end,
       date: date,
       employees: activeEmployees
     });
@@ -169,11 +169,29 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex gap-4 mb-6">
                   <div className="flex-1">
                     <label className="block text-sm font-bold text-gray-700 mb-2">وقت البدء (الافتراضي)</label>
-                    <input type="time" defaultValue={currentBranchSettings.start} className="w-full p-3 border rounded-lg bg-gray-50" />
+                    <input 
+                      type="time" 
+                      value={currentBranchSettings.start} 
+                      onChange={(e) => updateBranchSettings(user?.branch || '', e.target.value, currentBranchSettings.end, currentBranchSettings.googleApi, currentBranchSettings.nextDayTime)}
+                      className="w-full p-3 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500" 
+                    />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">وقت الانتهاء</label>
-                    <input type="time" defaultValue={currentBranchSettings.end} className="w-full p-3 border rounded-lg bg-gray-50" />
+                    <div className="flex justify-between items-end mb-2">
+                      <label className="block text-sm font-bold text-gray-700">وقت الانتهاء</label>
+                      <button 
+                        onClick={() => updateBranchSettings(user?.branch || '', currentBranchSettings.start, currentBranchSettings.nextDayTime || '10:00', currentBranchSettings.googleApi, currentBranchSettings.nextDayTime)}
+                        className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-bold hover:bg-indigo-200"
+                      >
+                        حتى بدء اليوم التالي
+                      </button>
+                    </div>
+                    <input 
+                      type="time" 
+                      value={currentBranchSettings.end} 
+                      onChange={(e) => updateBranchSettings(user?.branch || '', currentBranchSettings.start, e.target.value, currentBranchSettings.googleApi, currentBranchSettings.nextDayTime)}
+                      className="w-full p-3 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500" 
+                    />
                   </div>
                 </div>
 
@@ -205,7 +223,10 @@ export const AdminDashboard: React.FC = () => {
                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border shadow-sm">
                       <div className="flex items-center justify-between mb-1">
                         <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : 'text-green-600'}`}>{item.title}</h4>
-                        <time className="text-xs font-medium text-gray-500">{item.date ? formatDateTime(item.date, item.time) : item.time}</time>
+                        <time className="text-xs font-medium text-gray-500">
+                          {item.date ? formatDateTime(item.date, item.time) : item.time}
+                          {item.endTime && ` - ${item.endTime}`}
+                        </time>
                       </div>
                       
                       {item.type === 'gap' && (

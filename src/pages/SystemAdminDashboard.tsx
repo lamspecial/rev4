@@ -90,8 +90,9 @@ export const SystemAdminDashboard: React.FC = () => {
   const handleSaveTimes = () => {
     const start = (document.getElementById(`start-${selectedBranch}`) as HTMLInputElement).value;
     const end = (document.getElementById(`end-${selectedBranch}`) as HTMLInputElement).value;
+    const nextDayTime = (document.getElementById(`nextday-${selectedBranch}`) as HTMLInputElement).value;
     const googleApi = (document.getElementById(`api-${selectedBranch}`) as HTMLInputElement).value;
-    updateBranchSettings(selectedBranch, start, end, googleApi);
+    updateBranchSettings(selectedBranch, start, end, googleApi, nextDayTime);
     showToast('تم حفظ إعدادات الفرع');
   };
 
@@ -266,7 +267,10 @@ export const SystemAdminDashboard: React.FC = () => {
                       <div className="flex items-center justify-between mb-1">
                         <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : item.type === 'review' ? 'text-yellow-600' : 'text-green-600'}`}>{item.title}</h4>
                         <div className="flex items-center gap-2">
-                          <time className="text-xs font-medium text-gray-500">{item.date ? formatDateTime(item.date, item.time) : item.time}</time>
+                          <time className="text-xs font-medium text-gray-500">
+                            {item.date ? formatDateTime(item.date, item.time) : item.time}
+                            {item.endTime && ` - ${item.endTime}`}
+                          </time>
                           <button onClick={() => handleDeleteTimelineEvent(item.id, item.reviewId)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
                         </div>
                       </div>
@@ -367,8 +371,12 @@ export const SystemAdminDashboard: React.FC = () => {
                     <input id={`start-${selectedBranch}`} type="time" defaultValue={branchSettings[selectedBranch]?.start || '16:00'} className="w-full p-2 border rounded" />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-1">وقت الانتهاء</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">وقت الانتهاء (نفس اليوم)</label>
                     <input id={`end-${selectedBranch}`} type="time" defaultValue={branchSettings[selectedBranch]?.end || '00:00'} className="w-full p-2 border rounded" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-bold text-gray-700 mb-1">وقت اليوم التالي</label>
+                    <input id={`nextday-${selectedBranch}`} type="time" defaultValue={branchSettings[selectedBranch]?.nextDayTime || '10:00'} className="w-full p-2 border rounded" />
                   </div>
                 </div>
                 <div className="mb-4">

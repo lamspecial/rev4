@@ -11,17 +11,24 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserAccount | null>(null);
   const { users } = useData();
-
-  useEffect(() => {
-    // Check local storage for existing session
+  const [user, setUser] = useState<UserAccount | null>(() => {
     const savedUserId = localStorage.getItem('auth_user_id');
     if (savedUserId && users.length > 0) {
-      const foundUser = users.find(u => u.id === savedUserId);
-      if (foundUser) setUser(foundUser);
+      return users.find(u => u.id === savedUserId) || null;
     }
-  }, [users]);
+    return null;
+  });
+
+  useEffect(() => {
+    if (!user) {
+      const savedUserId = localStorage.getItem('auth_user_id');
+      if (savedUserId && users.length > 0) {
+        const foundUser = users.find(u => u.id === savedUserId);
+        if (foundUser) setUser(foundUser);
+      }
+    }
+  }, [users, user]);
 
   const login = (email: string, pass: string) => {
     const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
