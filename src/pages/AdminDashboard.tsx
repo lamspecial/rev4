@@ -376,27 +376,27 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 w-full bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 flex justify-around items-center p-3">
+      <div className="fixed bottom-0 left-0 right-0 w-full bg-white/90 backdrop-blur-lg border-t border-gray-200 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-around items-center">
         <button 
           onClick={() => setActiveTab('shift')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'shift' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'shift' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
         >
-          <CalendarClock size={24} className={activeTab === 'shift' ? 'stroke-[2.5px]' : ''} />
+          <CalendarClock size={22} className={activeTab === 'shift' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الشفت</span>
         </button>
         <button 
           onClick={() => setActiveTab('timeline')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'timeline' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'timeline' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
         >
-          <Activity size={24} className={activeTab === 'timeline' ? 'stroke-[2.5px]' : ''} />
+          <Activity size={22} className={activeTab === 'timeline' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الخط الزمني</span>
         </button>
         <button 
           onClick={() => setActiveTab('employees')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'employees' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'employees' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
         >
-          <Users size={24} className={activeTab === 'employees' ? 'stroke-[2.5px]' : ''} />
-          <span className="text-[10px] font-bold">الموظفات</span>
+          <Users size={22} className={activeTab === 'employees' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">موظفات الفرع</span>
         </button>
       </div>
     </div>
