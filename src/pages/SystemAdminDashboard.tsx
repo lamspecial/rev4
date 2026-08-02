@@ -7,7 +7,7 @@ import { formatDateTime } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
-  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, updateReview, deleteReview } = useData();
+  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, injectShifts, updateReview, deleteReview } = useData();
   const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats'>('timeline');
 
   const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
@@ -21,6 +21,7 @@ export const SystemAdminDashboard: React.FC = () => {
   const [uploadingEmpId, setUploadingEmpId] = useState<string | null>(null);
 
   const [reviewsText, setReviewsText] = useState('');
+  const [shiftsText, setShiftsText] = useState('');
   const [viewingReviewsMonth, setViewingReviewsMonth] = useState('');
   const [linkingReviewId, setLinkingReviewId] = useState<string | null>(null);
   const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
@@ -33,6 +34,13 @@ export const SystemAdminDashboard: React.FC = () => {
     injectReviews(selectedBranch, reviewsText);
     showToast('تم استيراد وحقن التقييمات بنجاح');
     setReviewsText('');
+  };
+
+  const handleInjectShifts = () => {
+    if (!shiftsText.trim()) return;
+    injectShifts(selectedBranch, shiftsText);
+    showToast('تم حقن الشفتات بنجاح');
+    setShiftsText('');
   };
   
   const handleSaveLinking = (timelineId: string, reviewId: string | undefined) => {
@@ -639,12 +647,38 @@ export const SystemAdminDashboard: React.FC = () => {
                     value={reviewsText} 
                     onChange={e => setReviewsText(e.target.value)}
                     placeholder="الصق التقييمات هنا بالصيغة المطلوبة...&#10;مثال:&#10;معرف التقييم: Abc...&#10;اسم المقيم: أحمد..."
-                    className="w-full h-48 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
+                    className="w-full h-32 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
                   ></textarea>
                 </div>
-                <button onClick={handleInjectReviews} className="w-full bg-blue-600 text-white p-4 rounded-lg font-bold hover:bg-blue-700 text-lg flex items-center justify-center gap-2 shadow-md">
-                  <CheckCircle2 size={20} />
-                  بدء الحقن والمزامنة للفرع
+                <button onClick={handleInjectReviews} className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 text-md flex items-center justify-center gap-2 shadow-sm mb-6">
+                  <CheckCircle2 size={18} />
+                  بدء الحقن والمزامنة للتقييمات
+                </button>
+
+                <div className="mb-4 pt-4 border-t border-blue-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-blue-800">النص البرمجي للشفتات</label>
+                    <button 
+                      onClick={() => {
+                        const template = `الموظفة: ١\nوقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦\nوقت النهاية: ١١:٥٩ ٠٣-٠٣-٢٠٢٦`;
+                        navigator.clipboard.writeText(template);
+                        showToast('تم نسخ النموذج');
+                      }}
+                      className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-bold flex items-center gap-1"
+                    >
+                      📋 نسخ النموذج
+                    </button>
+                  </div>
+                  <textarea 
+                    value={shiftsText} 
+                    onChange={e => setShiftsText(e.target.value)}
+                    placeholder="الصق الشفتات هنا بالصيغة المطلوبة...&#10;مثال:&#10;الموظفة: ١&#10;وقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦..."
+                    className="w-full h-32 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
+                  ></textarea>
+                </div>
+                <button onClick={handleInjectShifts} className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 text-md flex items-center justify-center gap-2 shadow-sm">
+                  <CalendarClock size={18} />
+                  بدء حقن الشفتات
                 </button>
               </div>
 
