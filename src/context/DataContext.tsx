@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockUsers } from '../lib/mockData';
 import type { UserAccount } from '../lib/mockData';
+import employeeImg from '../assets/employee.png';
 
 export interface CustomerReview {
   id: string;
@@ -358,9 +359,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const enrichedUsers = React.useMemo(() => {
     return users.map(user => {
-      if (user.role !== 'employee') return user;
+      // Force all users to use the unified employee image
+      const unifiedUser = { ...user, imageUrl: employeeImg };
+      if (unifiedUser.role !== 'employee') return unifiedUser;
       
-      const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(user.id));
+      const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(unifiedUser.id));
       let positiveScore = 0;
       let negativeScore = 2; // base score for negative
       
@@ -377,9 +380,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (positiveScore > 5) positiveScore = 5;
       
       const calculatedPoints = positiveScore + negativeScore;
-      
+      // Return updated user
       return {
-        ...user,
+        ...unifiedUser,
         points: calculatedPoints,
         reviewsCount: empReviews.length
       };
