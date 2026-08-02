@@ -114,68 +114,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateBranchSettings = (branch: string, start: string, end: string, googleApi?: string) => {
-    let newSettings: Record<string, { start: string; end: string; googleApi?: string }> = {};
-    setBranchSettings(prev => {
-      const current = prev[branch] || {};
-      newSettings = { ...prev, [branch]: { start, end, googleApi: googleApi !== undefined ? googleApi : current.googleApi } };
-      return newSettings;
-    });
-    
-    setTimeout(() => {
-      try {
-        localStorage.setItem('app_branch_settings', JSON.stringify(newSettings));
-      } catch (e) { console.error(e); }
-    }, 0);
+    const current = branchSettings[branch] || {};
+    const newSettings = { ...branchSettings, [branch]: { start, end, googleApi: googleApi !== undefined ? googleApi : current.googleApi } };
+    setBranchSettings(newSettings);
+    try {
+      localStorage.setItem('app_branch_settings', JSON.stringify(newSettings));
+    } catch (e) { console.error(e); }
   };
 
   const addTimelineComment = (id: string, comment: string) => {
-    let newTimeline: TimelineEvent[] = [];
-    setTimeline(prev => {
-      newTimeline = prev.map(t => t.id === id ? { ...t, comment } : t);
-      return newTimeline;
-    });
-    
-    setTimeout(() => {
-      try {
-        localStorage.setItem('app_timeline', JSON.stringify(newTimeline));
-      } catch (e) { console.error(e); }
-    }, 0);
+    const newTimeline = timeline.map(t => t.id === id ? { ...t, comment } : t);
+    setTimeline(newTimeline);
+    try {
+      localStorage.setItem('app_timeline', JSON.stringify(newTimeline));
+    } catch (e) { console.error(e); }
   };
 
   const addTimelineEvent = (event: Omit<TimelineEvent, 'id'>) => {
-    let newTimeline: TimelineEvent[] = [];
-    setTimeline(prev => {
-      newTimeline = [{ ...event, id: Date.now().toString() }, ...prev];
-      return newTimeline;
-    });
-    
-    setTimeout(() => {
-      try {
-        localStorage.setItem('app_timeline', JSON.stringify(newTimeline));
-      } catch (e) { console.error(e); }
-    }, 0);
+    const newTimeline = [{ ...event, id: Date.now().toString() }, ...timeline];
+    setTimeline(newTimeline);
+    try {
+      localStorage.setItem('app_timeline', JSON.stringify(newTimeline));
+    } catch (e) { console.error(e); }
   };
 
   const updateTimelineEvent = (id: string, updates: Partial<TimelineEvent>) => {
-    let newTimeline: TimelineEvent[] = [];
-    setTimeline(prev => {
-      newTimeline = prev.map(t => t.id === id ? { ...t, ...updates } : t);
-      return newTimeline;
-    });
-    setTimeout(() => {
-      try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
-    }, 0);
+    const newTimeline = timeline.map(t => t.id === id ? { ...t, ...updates } : t);
+    setTimeline(newTimeline);
+    try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
   };
 
   const deleteTimelineEvent = (id: string) => {
-    let newTimeline: TimelineEvent[] = [];
-    setTimeline(prev => {
-      newTimeline = prev.filter(t => t.id !== id);
-      return newTimeline;
-    });
-    setTimeout(() => {
-      try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
-    }, 0);
+    const newTimeline = timeline.filter(t => t.id !== id);
+    setTimeline(newTimeline);
+    try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
   };
 
   const updateReview = (id: string, updates: Partial<CustomerReview>) => {
