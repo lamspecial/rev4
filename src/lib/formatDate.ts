@@ -31,3 +31,26 @@ export const formatDateTime = (dateStr: string, timeStr: string): string => {
     return `(${timeStr} ${dateStr})`;
   }
 };
+
+export const parseDateStr = (dateStr: string): Date | null => {
+  try {
+    const [day, month, year] = dateStr.split('-');
+    if (!day || !month || !year) return null;
+    return new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+  } catch {
+    return null;
+  }
+};
+
+export const isWithinLastDays = (dateStr: string, days: number): boolean => {
+  const date = parseDateStr(dateStr);
+  if (!date) return false;
+  
+  // Use current date for the app context, or a fixed reference if testing
+  const now = new Date();
+  
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays <= days;
+};

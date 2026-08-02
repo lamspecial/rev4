@@ -1,30 +1,153 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCreative, Autoplay } from 'swiper/modules';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ScrollText, X } from 'lucide-react';
+import { ScrollText, X, Building2, Users, Star, MessageSquareHeart, TrendingUp } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/effect-creative';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useData } from '../context/DataContext';
-import { formatDateTime } from '../lib/formatDate';
+import { formatDateTime, isWithinLastDays } from '../lib/formatDate';
+import type { UserAccount } from '../lib/mockData';
+
+type SlideData = 
+  | { type: 'employee'; data: UserAccount; rank: number }
+  | { type: 'partnership'; branch: string; emp1: UserAccount; emp2: UserAccount; count: number }
+  | { type: 'active_branch'; branch: string; count: number }
+  | { type: 'active_employee'; employee: UserAccount; count: number }
+  | { type: 'praised_employee'; employee: UserAccount; count: number; texts: string[] };
 
 export const Leaderboard: React.FC = () => {
   const { users, reviews } = useData();
   const [showBranchModal, setShowBranchModal] = useState(false);
   
-  // Sort employees by points
-  const sortedEmployees = users
-    .filter(u => u.role === 'employee')
-    .sort((a, b) => b.points - a.points);
-  
+  const slidesData = useMemo(() => {
+    // 1. Top 10 Employees
+    const sorted = users
+      .filter(u => u.role === 'employee')
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 10);
+    
+    const sData: SlideData[] = sorted.map((emp, i) => ({ type: 'employee', data: emp, rank: i + 1 }));
+
+    // 2. Partnerships (Best per branch)
+    const branchReviewsMap: Record<string, typeof reviews> = {};
+    reviews.forEach(r => {
+      if (!branchReviewsMap[r.branch]) branchReviewsMap[r.branch] = [];
+      branchReviewsMap[r.branch].push(r);
+    });
+
+    Object.keys(branchReviewsMap).forEach(branch => {
+      const bReviews = branchReviewsMap[branch];
+      const pairCounts: Record<string, number> = {};
+      bReviews.forEach(r => {
+        if (r.linkedEmployeeIds && r.linkedEmployeeIds.length > 1) {
+          for (let i = 0; i < r.linkedEmployeeIds.length; i++) {
+            for (let j = i + 1; j < r.linkedEmployeeIds.length; j++) {
+              const pair = [r.linkedEmployeeIds[i], r.linkedEmployeeIds[j]].sort().join('|');
+              pairCounts[pair] = (pairCounts[pair] || 0) + 1;
+            }
+          }
+        }
+      });
+
+      let maxPair = '';
+      let maxCount = 0;
+      Object.entries(pairCounts).forEach(([pair, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          maxPair = pair;
+        }
+      });
+
+      if (maxPair && maxCount > 0) {
+        const [id1, id2] = maxPair.split('|');
+        const emp1 = users.find(u => u.id === id1);
+        const emp2 = users.find(u => u.id === id2);
+        if (emp1 && emp2) {
+          sData.push({ type: 'partnership', branch, emp1, emp2, count: maxCount });
+        }
+      }
+    });
+
+    // 3. Most Active Branch (Last 4 days)
+    const recentReviews = reviews.filter(r => isWithinLastDays(r.date, 4));
+    let mostActiveBranch = '';
+    let maxBranchCount = 0;
+    const branchCounts: Record<string, number> = {};
+    
+    let mostActiveEmployeeId = '';
+    let maxEmpCount = 0;
+    const empCounts: Record<string, number> = {};
+
+    recentReviews.forEach(r => {
+      branchCounts[r.branch] = (branchCounts[r.branch] || 0) + 1;
+      if (branchCounts[r.branch] > maxBranchCount) {
+        maxBranchCount = branchCounts[r.branch];
+        mostActiveBranch = r.branch;
+      }
+
+      r.linkedEmployeeIds.forEach(id => {
+        empCounts[id] = (empCounts[id] || 0) + 1;
+        if (empCounts[id] > maxEmpCount) {
+          maxEmpCount = empCounts[id];
+          mostActiveEmployeeId = id;
+        }
+      });
+    });
+    
+    const mostActiveEmployee = users.find(u => u.id === mostActiveEmployeeId);
+
+    if (mostActiveBranch && maxBranchCount > 0) {
+      sData.push({ type: 'active_branch', branch: mostActiveBranch, count: maxBranchCount });
+    }
+    if (mostActiveEmployee && maxEmpCount > 0) {
+      sData.push({ type: 'active_employee', employee: mostActiveEmployee, count: maxEmpCount });
+    }
+
+    // 4. Most Praised Employee
+    let mostPraisedEmpId = '';
+    let maxPraiseCount = 0;
+    const praiseCounts: Record<string, { count: number, texts: string[] }> = {};
+
+    reviews.forEach(r => {
+      if (r.comment && r.comment.length > 5) {
+        r.linkedEmployeeIds.forEach(id => {
+          if (!praiseCounts[id]) praiseCounts[id] = { count: 0, texts: [] };
+          praiseCounts[id].count++;
+          praiseCounts[id].texts.push(r.comment);
+          if (praiseCounts[id].count > maxPraiseCount) {
+            maxPraiseCount = praiseCounts[id].count;
+            mostPraisedEmpId = id;
+          }
+        });
+      }
+    });
+
+    const mostPraisedEmployee = users.find(u => u.id === mostPraisedEmpId);
+    if (mostPraisedEmployee && maxPraiseCount > 0) {
+      sData.push({ 
+        type: 'praised_employee', 
+        employee: mostPraisedEmployee, 
+        count: maxPraiseCount, 
+        texts: praiseCounts[mostPraisedEmpId].texts.slice(0, 3) 
+      });
+    }
+
+    return sData;
+  }, [users, reviews]);
+
   const [activeIndex, setActiveIndex] = useState(0);
-  const activeEmp = sortedEmployees[activeIndex] || sortedEmployees[0];
+  const activeSlide = slidesData[activeIndex] || slidesData[0];
   
+  const modalBranchName = activeSlide?.type === 'employee' ? activeSlide.data.branch 
+    : activeSlide?.type === 'partnership' ? activeSlide.branch 
+    : activeSlide?.type === 'active_branch' ? activeSlide.branch 
+    : undefined;
+
   const swiperRef = useRef<any>(null);
   const touchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Handle pause on touch for 5 seconds
   const handleTouchStart = () => {
     if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
     if (swiperRef.current && swiperRef.current.swiper) {
@@ -42,7 +165,6 @@ export const Leaderboard: React.FC = () => {
     }
   };
 
-  // Stop autoplay completely when modal opens
   const handleModalOpen = useCallback(() => {
     if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
     if (swiperRef.current && swiperRef.current.swiper) {
@@ -50,12 +172,13 @@ export const Leaderboard: React.FC = () => {
     }
   }, []);
 
-  // Resume autoplay when modal closes
   const handleModalClose = useCallback(() => {
     if (swiperRef.current && swiperRef.current.swiper) {
       swiperRef.current.swiper.autoplay.start();
     }
   }, []);
+
+  if (slidesData.length === 0) return null;
 
   return (
     <div 
@@ -67,18 +190,19 @@ export const Leaderboard: React.FC = () => {
       onMouseUp={handleTouchEnd}
     >
       
-      {/* Top Header - Only Ranking */}
+      {/* Top Header - Contextual */}
       <AnimatePresence mode="wait">
         <motion.div 
-          key={activeEmp?.id + '-header'}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          key={activeIndex + '-header'}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
           className="w-full px-4 sm:px-8 pt-8 flex justify-end items-start z-10 font-bold text-gray-800 absolute top-0"
         >
           <div className="text-3xl sm:text-5xl font-extrabold tracking-tight" dir="rtl">
-            الترتيب : {activeIndex + 1}
+            {activeSlide.type === 'employee' && `الترتيب : ${activeSlide.rank}`}
+            {activeSlide.type === 'partnership' && `شراكات الفروع`}
+            {activeSlide.type === 'active_branch' && `إحصائية الأسبوع`}
+            {activeSlide.type === 'active_employee' && `نشاط الأسبوع`}
+            {activeSlide.type === 'praised_employee' && `نجمة الثناء`}
           </div>
         </motion.div>
       </AnimatePresence>
@@ -92,35 +216,78 @@ export const Leaderboard: React.FC = () => {
           grabCursor={true}
           centeredSlides={true}
           slidesPerView={1}
-          autoplay={{
-            delay: 3000,
-            disableOnInteraction: false,
-          }}
+          autoplay={{ delay: 3000, disableOnInteraction: false }}
           onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
           creativeEffect={{
             limitProgress: 2,
-            prev: {
-              translate: ['-100%', '50%', 0],
-              opacity: 0,
-              scale: 1
-            },
-            next: {
-              translate: ['40%', '-20%', -200],
-              opacity: 1,
-              scale: 0.8
-            },
+            prev: { translate: ['-100%', '50%', 0], opacity: 0, scale: 1 },
+            next: { translate: ['40%', '-20%', -200], opacity: 1, scale: 0.8 },
           }}
           modules={[EffectCreative, Autoplay]}
           className="w-full h-[60vh] max-w-sm mx-auto overflow-visible"
         >
-          {sortedEmployees.map((emp) => (
-            <SwiperSlide key={emp.id} className="flex justify-center items-center">
-              <div className="h-full flex justify-center items-center relative">
-                <img 
-                  src={emp.imageUrl} 
-                  alt={emp.name}
-                  className="h-[50vh] sm:h-[55vh] object-contain"
-                />
+          {slidesData.map((slide, i) => (
+            <SwiperSlide key={i} className="flex justify-center items-center">
+              <div className="h-full flex justify-center items-center relative w-full px-4">
+                
+                {slide.type === 'employee' && (
+                  <img src={slide.data.imageUrl} alt={slide.data.name} className="h-[50vh] sm:h-[55vh] object-contain drop-shadow-xl" />
+                )}
+
+                {slide.type === 'partnership' && (
+                  <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-blue-50 to-indigo-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-center items-center p-6 text-center gap-4 relative overflow-hidden rtl" dir="rtl">
+                    <Users size={64} className="text-blue-500 opacity-20 absolute top-10 right-10" />
+                    <div className="flex items-center justify-center -space-x-8 rtl:space-x-reverse mt-4">
+                      <img src={slide.emp1.imageUrl} alt={slide.emp1.name} className="w-28 h-28 rounded-full border-4 border-white shadow-xl object-cover bg-white z-10" />
+                      <img src={slide.emp2.imageUrl} alt={slide.emp2.name} className="w-28 h-28 rounded-full border-4 border-white shadow-xl object-cover bg-white z-0 -ml-8" />
+                    </div>
+                    <div className="z-10 mt-4 bg-white/60 backdrop-blur-sm p-4 rounded-3xl w-full shadow-sm">
+                      <h4 className="text-xl font-black text-gray-800 leading-tight">{slide.emp1.name}</h4>
+                      <p className="text-sm font-bold text-gray-500 my-1">&</p>
+                      <h4 className="text-xl font-black text-gray-800 leading-tight">{slide.emp2.name}</h4>
+                    </div>
+                  </div>
+                )}
+
+                {slide.type === 'active_branch' && (
+                  <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-emerald-50 to-teal-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-center items-center p-6 text-center gap-4 relative overflow-hidden rtl" dir="rtl">
+                    <Building2 size={64} className="text-teal-500 opacity-20 absolute top-10 left-10" />
+                    <div className="w-36 h-36 bg-white rounded-[2rem] flex flex-col items-center justify-center shadow-lg border-2 border-teal-50 mb-4 rotate-3">
+                      <TrendingUp size={48} className="text-teal-500 mb-2" />
+                      <p className="text-3xl font-extrabold text-teal-600">+{slide.count}</p>
+                    </div>
+                    <h3 className="text-3xl font-black text-gray-800 leading-tight">{slide.branch}</h3>
+                    <p className="text-teal-700 font-bold bg-teal-100 px-4 py-2 rounded-full mt-2 text-sm shadow-inner">في آخر ٤ أيام</p>
+                  </div>
+                )}
+
+                {slide.type === 'active_employee' && (
+                  <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-amber-50 to-orange-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-center items-center p-6 text-center relative overflow-hidden rtl" dir="rtl">
+                    <Star size={64} className="text-orange-500 opacity-20 absolute top-10 right-10" />
+                    <img src={slide.employee.imageUrl} alt={slide.employee.name} className="w-40 h-40 rounded-full border-4 border-white shadow-xl object-cover bg-white mb-6 z-10" />
+                    <h3 className="text-3xl font-black text-gray-800 leading-tight z-10">{slide.employee.name}</h3>
+                    <p className="text-orange-700 font-bold bg-orange-100 px-4 py-2 rounded-full mt-4 z-10 text-sm shadow-inner">نشاط متصاعد بقوة</p>
+                  </div>
+                )}
+
+                {slide.type === 'praised_employee' && (
+                  <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-pink-50 to-rose-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-start items-center p-6 text-center relative overflow-hidden rtl" dir="rtl">
+                    <MessageSquareHeart size={64} className="text-pink-500 opacity-10 absolute bottom-10 left-10" />
+                    <img src={slide.employee.imageUrl} alt={slide.employee.name} className="w-24 h-24 rounded-full border-4 border-pink-200 shadow-lg object-cover bg-white mb-4 z-10 shrink-0" />
+                    <h3 className="text-2xl font-black text-gray-800 leading-tight z-10 shrink-0">{slide.employee.name}</h3>
+                    
+                    <div className="mt-4 flex flex-col gap-3 w-full z-10 overflow-hidden">
+                      {slide.texts.map((t, idx) => (
+                        <div key={idx} className="bg-white/90 backdrop-blur-sm p-3 rounded-2xl shadow-sm text-xs text-gray-800 text-right line-clamp-3 italic border border-pink-50 relative">
+                          <span className="text-pink-300 text-2xl absolute -top-2 -right-1 font-serif">"</span>
+                          {t}
+                          <span className="text-pink-300 text-2xl absolute -bottom-4 -left-1 font-serif">"</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             </SwiperSlide>
           ))}
@@ -135,48 +302,109 @@ export const Leaderboard: React.FC = () => {
         <div className="bg-blue-500 w-full flex-1 flex flex-col items-center justify-center text-white pointer-events-auto pb-24 sm:pb-8">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeEmp?.id + '-bottom'}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25 }}
+              key={activeIndex + '-bottom'}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}
               className="flex flex-col items-center w-full px-6"
             >
-              {/* Employee Name triggers the modal */}
-              <EmployeeCard employee={activeEmp} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
-                <button className="flex items-center gap-2 hover:scale-105 transition-transform group">
-                  <h2 className="text-3xl sm:text-5xl font-bold mb-1">{activeEmp?.name}</h2>
-                  <ScrollText size={28} className="opacity-80 group-hover:opacity-100" />
-                </button>
-              </EmployeeCard>
               
-              <button 
-                onClick={() => { setShowBranchModal(true); handleModalOpen(); }}
-                className="text-lg sm:text-xl font-medium mb-3 hover:underline bg-white/20 px-4 py-1 rounded-full"
-              >
-                {activeEmp?.branch}
-              </button>
+              {activeSlide.type === 'employee' && (
+                <>
+                  <EmployeeCard employee={activeSlide.data} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
+                    <button className="flex items-center gap-2 hover:scale-105 transition-transform group">
+                      <h2 className="text-3xl sm:text-5xl font-bold mb-1">{activeSlide.data.name}</h2>
+                      <ScrollText size={28} className="opacity-80 group-hover:opacity-100" />
+                    </button>
+                  </EmployeeCard>
+                  
+                  <button onClick={() => { setShowBranchModal(true); handleModalOpen(); }} className="text-lg sm:text-xl font-medium mb-3 hover:underline bg-white/20 px-4 py-1 rounded-full mt-2">
+                    {activeSlide.data.branch}
+                  </button>
 
-              {/* Stats Row - Points left, Reviews right */}
-              <div className="flex items-center justify-center gap-8 w-full mt-1">
-                <div className="flex flex-col items-center">
-                  <p className="text-blue-100 text-xs font-bold">النقاط</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold">{activeEmp?.points}</p>
-                </div>
-                <div className="w-px h-10 bg-blue-300/50"></div>
-                <div className="flex flex-col items-center">
-                  <p className="text-blue-100 text-xs font-bold">رصيد الشهر</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold">{activeEmp?.reviewsCount} <span className="text-base font-bold">تقييم</span></p>
-                </div>
-              </div>
+                  <div className="flex items-center justify-center gap-8 w-full mt-1">
+                    <div className="flex flex-col items-center">
+                      <p className="text-blue-100 text-xs font-bold">النقاط</p>
+                      <p className="text-2xl sm:text-3xl font-extrabold">{activeSlide.data.points.toFixed(2)}</p>
+                    </div>
+                    <div className="w-px h-10 bg-blue-300/50"></div>
+                    <div className="flex flex-col items-center">
+                      <p className="text-blue-100 text-xs font-bold">رصيد الشهر</p>
+                      <p className="text-2xl sm:text-3xl font-extrabold">{activeSlide.data.reviewsCount} <span className="text-base font-bold">تقييم</span></p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeSlide.type === 'partnership' && (
+                <>
+                  <h2 className="text-2xl sm:text-4xl font-bold mb-3">شراكة فعالة</h2>
+                  <button onClick={() => { setShowBranchModal(true); handleModalOpen(); }} className="text-lg sm:text-xl font-medium hover:underline bg-white/20 px-4 py-1 rounded-full mb-3">
+                    فرع {activeSlide.branch}
+                  </button>
+                  <div className="flex flex-col items-center mt-2">
+                    <p className="text-blue-100 text-xs font-bold">التقييمات المشتركة</p>
+                    <p className="text-3xl sm:text-4xl font-extrabold">{activeSlide.count}</p>
+                  </div>
+                </>
+              )}
+
+              {activeSlide.type === 'active_branch' && (
+                <>
+                  <h2 className="text-2xl sm:text-4xl font-bold mb-3">الفرع الأنشط مؤخراً</h2>
+                  <button onClick={() => { setShowBranchModal(true); handleModalOpen(); }} className="text-xl sm:text-2xl font-bold hover:underline bg-white/20 px-6 py-2 rounded-full mb-3">
+                    {activeSlide.branch}
+                  </button>
+                  <div className="flex flex-col items-center mt-2">
+                    <p className="text-blue-100 text-xs font-bold">اكتسب في 4 أيام</p>
+                    <p className="text-3xl sm:text-4xl font-extrabold">{activeSlide.count} <span className="text-lg">تقييم</span></p>
+                  </div>
+                </>
+              )}
+
+              {activeSlide.type === 'active_employee' && (
+                <>
+                  <h2 className="text-2xl sm:text-4xl font-bold mb-2">الموظفة الأنشط مؤخراً</h2>
+                  <EmployeeCard employee={activeSlide.employee} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
+                    <button className="flex items-center gap-2 hover:scale-105 transition-transform group my-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold underline decoration-white/30 underline-offset-4">{activeSlide.employee.name}</h3>
+                    </button>
+                  </EmployeeCard>
+                  <button onClick={() => { setShowBranchModal(true); handleModalOpen(); }} className="text-sm sm:text-base font-medium hover:underline bg-white/20 px-3 py-1 rounded-full mb-3">
+                    {activeSlide.employee.branch}
+                  </button>
+                  <div className="flex flex-col items-center">
+                    <p className="text-blue-100 text-xs font-bold">اكتسبت في 4 أيام</p>
+                    <p className="text-3xl sm:text-4xl font-extrabold">{activeSlide.count} <span className="text-lg">تقييم</span></p>
+                  </div>
+                </>
+              )}
+
+              {activeSlide.type === 'praised_employee' && (
+                <>
+                  <h2 className="text-2xl sm:text-4xl font-bold mb-2 text-pink-100">نجمة الثناء</h2>
+                  <EmployeeCard employee={activeSlide.employee} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
+                    <button className="flex items-center gap-2 hover:scale-105 transition-transform group my-2">
+                      <h3 className="text-xl sm:text-2xl font-extrabold underline decoration-white/30 underline-offset-4">{activeSlide.employee.name}</h3>
+                    </button>
+                  </EmployeeCard>
+                  <button onClick={() => { setShowBranchModal(true); handleModalOpen(); }} className="text-sm sm:text-base font-medium hover:underline bg-white/20 px-3 py-1 rounded-full mb-3">
+                    {activeSlide.employee.branch}
+                  </button>
+                  <div className="flex flex-col items-center">
+                    <p className="text-blue-100 text-xs font-bold">عدد رسائل المدح</p>
+                    <p className="text-3xl sm:text-4xl font-extrabold text-pink-100">{activeSlide.count} <span className="text-lg">رسالة</span></p>
+                  </div>
+                </>
+              )}
+
             </motion.div>
           </AnimatePresence>
         </div>
       </div>
 
-      {/* Calculate Branch Stats */}
+      {/* Branch Modal */}
       {(() => {
-        const branchReviews = reviews.filter(r => r.branch === activeEmp?.branch);
+        if (!modalBranchName) return null;
+        const branchReviews = reviews.filter(r => r.branch === modalBranchName);
         let shiningStar = { name: 'لا يوجد', count: 0 };
         let bestPartnership = { names: 'لا يوجد', count: 0 };
 
@@ -232,7 +460,7 @@ export const Leaderboard: React.FC = () => {
                   className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
                 >
                   <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
-                    <h3 className="text-xl font-bold">تقييمات فرع {activeEmp?.branch}</h3>
+                    <h3 className="text-xl font-bold">تقييمات فرع {modalBranchName}</h3>
                     <button 
                       onClick={() => { setShowBranchModal(false); handleModalClose(); }}
                       className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
