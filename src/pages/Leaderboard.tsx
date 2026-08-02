@@ -20,6 +20,8 @@ type SlideData =
 export const Leaderboard: React.FC = () => {
   const { users, reviews } = useData();
   const [showBranchModal, setShowBranchModal] = useState(false);
+  const [showAllEmployeesModal, setShowAllEmployeesModal] = useState(false);
+  const [showAllBranchesModal, setShowAllBranchesModal] = useState(false);
   
   const slidesData = useMemo(() => {
     // 1. Top 10 Employees
@@ -299,7 +301,22 @@ export const Leaderboard: React.FC = () => {
         <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="w-full h-8 sm:h-12 text-blue-500 fill-current">
           <path d="M0,20 Q50,0 100,20 Z" />
         </svg>
-        <div className="bg-blue-500 w-full flex-1 flex flex-col items-center justify-center text-white pointer-events-auto pb-24 sm:pb-8">
+        <div className="bg-blue-500 w-full flex-1 flex flex-col items-center justify-center text-white pointer-events-auto pb-24 sm:pb-8 relative">
+          
+          {/* Left/Right Action Buttons */}
+          <button 
+            onClick={() => { setShowAllEmployeesModal(true); handleModalOpen(); }} 
+            className="absolute left-6 top-1/3 -translate-y-1/2 bg-white/10 p-3 sm:p-4 rounded-full hover:bg-white/20 transition-all hover:scale-110 active:scale-95 shadow-lg backdrop-blur-sm z-40"
+          >
+             <Users size={28} className="text-white" />
+          </button>
+          <button 
+            onClick={() => { setShowAllBranchesModal(true); handleModalOpen(); }} 
+            className="absolute right-6 top-1/3 -translate-y-1/2 bg-white/10 p-3 sm:p-4 rounded-full hover:bg-white/20 transition-all hover:scale-110 active:scale-95 shadow-lg backdrop-blur-sm z-40"
+          >
+             <Building2 size={28} className="text-white" />
+          </button>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={activeIndex + '-bottom'}
@@ -401,7 +418,127 @@ export const Leaderboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Branch Modal */}
+      {/* All Employees Modal */}
+      <AnimatePresence>
+        {showAllEmployeesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-alexandria touch-auto" dir="rtl">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => { setShowAllEmployeesModal(false); handleModalClose(); }}
+            />
+            <motion.div 
+              initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
+              className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="bg-blue-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 className="text-xl font-bold flex items-center gap-2"><Users size={24} /> جميع الموظفات</h3>
+                <button 
+                  onClick={() => { setShowAllEmployeesModal(false); handleModalClose(); }}
+                  className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-3">
+                {users.filter(u => u.role === 'employee').sort((a, b) => b.points - a.points).map((emp, idx) => (
+                  <div key={emp.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">{idx + 1}</div>
+                    <img src={emp.imageUrl} alt={emp.name} className="w-12 h-12 rounded-full object-cover border-2 border-gray-100" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-800">{emp.name}</h4>
+                      <p className="text-xs text-gray-500">{emp.branch}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-black text-blue-600">{emp.points?.toFixed(2) || '0.00'}</p>
+                      <p className="text-[10px] text-gray-400">نقطة</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* All Branches Modal */}
+      <AnimatePresence>
+        {showAllBranchesModal && (() => {
+          const branches = ['جاليري', 'النخيل', 'اليرموك', 'طريق الملك عبدالله', 'العليا', 'المدينة'];
+          
+          return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-alexandria touch-auto" dir="rtl">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => { setShowAllBranchesModal(false); handleModalClose(); }}
+            />
+            <motion.div 
+              initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
+              className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="bg-blue-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 className="text-xl font-bold flex items-center gap-2"><Building2 size={24} /> فروع لام سبيشل</h3>
+                <button 
+                  onClick={() => { setShowAllBranchesModal(false); handleModalClose(); }}
+                  className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-4">
+                {branches.map(branchName => {
+                  const branchEmps = users.filter(u => u.branch === branchName && u.role === 'employee').sort((a, b) => b.points - a.points);
+                  const top2 = branchEmps.slice(0, 2);
+                  const currentMonth = new Date().getMonth();
+                  const currentYear = new Date().getFullYear();
+                  
+                  const branchMonthReviews = reviews.filter(r => {
+                    if (r.branch !== branchName) return false;
+                    const dateParts = r.date.split('-');
+                    if (dateParts.length === 3) {
+                      const d = new Date(parseInt(dateParts[2]), parseInt(dateParts[1]) - 1, parseInt(dateParts[0]));
+                      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                    }
+                    return false;
+                  });
+
+                  return (
+                    <div key={branchName} className="bg-white p-4 rounded-xl border shadow-sm">
+                      <div className="flex justify-between items-center mb-3 border-b pb-2">
+                        <h4 className="font-bold text-lg text-blue-800">{branchName}</h4>
+                        <div className="text-left">
+                          <p className="text-xs text-gray-500">تقييمات الشهر</p>
+                          <p className="text-xl font-black text-blue-600">{branchMonthReviews.length}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 font-bold mb-2">أفضل موظفتين:</p>
+                      {top2.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {top2.map(emp => (
+                            <div key={emp.id} className="flex items-center gap-2 bg-blue-50 rounded-lg p-2">
+                              <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover" />
+                              <div className="overflow-hidden">
+                                <p className="text-sm font-bold text-gray-800 truncate">{emp.name}</p>
+                                <p className="text-[10px] text-gray-500">{emp.points?.toFixed(2) || '0.00'} نقطة</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">لا يوجد موظفات مسجلات</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* Branch Modal (from slide) */}
       {(() => {
         if (!modalBranchName) return null;
         const branchReviews = reviews.filter(r => r.branch === modalBranchName);
