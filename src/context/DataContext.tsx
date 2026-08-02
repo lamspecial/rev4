@@ -364,8 +364,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unifiedUser.role !== 'employee') return unifiedUser;
       
       const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(unifiedUser.id));
+      const empTimeline = timeline.filter(t => t.employees?.some(e => e.id === unifiedUser.id));
+      
       let positiveScore = 0;
       let negativeScore = 2; // base score for negative
+      let complaintsScore = 0;
+      let safetyScore = 0;
       
       empReviews.forEach(r => {
         const rating = parseInt(r.rating) || 0;
@@ -377,14 +381,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
+      empTimeline.forEach(t => {
+        if (t.type === 'gap') {
+          if (t.title.includes('شكوى')) complaintsScore += 1;
+          if (t.title.includes('سلامة')) safetyScore += 1;
+        }
+      });
+
       if (positiveScore > 5) positiveScore = 5;
+      if (negativeScore < 0) negativeScore = 0;
       
-      const calculatedPoints = positiveScore + negativeScore;
+      let qualityScore = 4 - (complaintsScore + safetyScore);
+      if (qualityScore < 0) qualityScore = 0;
+      
+      const calculatedPoints = positiveScore + negativeScore + qualityScore;
       // Return updated user
       return {
         ...unifiedUser,
         points: calculatedPoints,
-        reviewsCount: empReviews.length
+        reviewsCount: empReviews.length,
+        stats: {
+          positive: positiveScore,
+          negative: negativeScore,
+          complaints: complaintsScore,
+          safety: safetyScore
+        }
       };
     });
   }, [users, reviews]);

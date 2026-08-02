@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { UserAccount } from '../lib/mockData';
-import { X, CalendarClock, Star, Clock } from 'lucide-react';
+import { X, CalendarClock, Star, Clock, Award } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../context/DataContext';
 import { formatDateTime } from '../lib/formatDate';
@@ -14,7 +14,7 @@ interface Props {
 
 export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen, onModalClose }) => {
   const [showModal, setShowModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'reviews' | 'shifts'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'shifts' | 'points'>('points');
   const { reviews } = useData();
   const employeeReviews = reviews.filter(r => r.linkedEmployeeIds.includes(employee.id));
 
@@ -92,6 +92,13 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                   <CalendarClock size={18} />
                   سجل الشفتات
                 </button>
+                <button 
+                  onClick={() => setActiveTab('points')}
+                  className={`flex-1 p-3 font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'points' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                >
+                  <Award size={18} />
+                  النقاط
+                </button>
               </div>
 
               {/* Body */}
@@ -116,7 +123,7 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                       <p className="text-center text-gray-500 py-10">لا توجد تقييمات مكتسبة بعد.</p>
                     )}
                   </div>
-                ) : (
+                ) : activeTab === 'shifts' ? (
                   <div className="space-y-3">
                     {/* Total Hours Badge */}
                     <div className="bg-blue-600 text-white p-4 rounded-xl flex items-center justify-between shadow-md mb-4">
@@ -146,7 +153,46 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                       <p className="text-xs text-gray-400 mt-1">(مع ياسمين ونورة)</p>
                     </div>
                   </div>
-                )}
+                ) : activeTab === 'points' ? (
+                  <div className="space-y-4">
+                    <div className="bg-blue-600 text-white p-5 rounded-2xl flex items-center justify-between shadow-lg">
+                      <div className="flex items-center gap-3">
+                        <Award size={28} className="text-yellow-300" />
+                        <div>
+                          <p className="font-bold text-xl">التقييم العام</p>
+                          <p className="text-blue-100 text-sm">من إجمالي ١١ نقطة</p>
+                        </div>
+                      </div>
+                      <p className="text-4xl font-extrabold">{employee.points?.toFixed(2)}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                      <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+                        <div>
+                          <p className="text-gray-500 text-sm font-bold mb-1">نقاط التقييمات الإيجابية</p>
+                          <p className="text-xs text-gray-400">من أصل ٥ نقاط</p>
+                        </div>
+                        <p className="text-2xl font-bold text-green-600 mt-2">{employee.stats?.positive?.toFixed(2) || '0.00'}</p>
+                      </div>
+                      
+                      <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+                        <div>
+                          <p className="text-gray-500 text-sm font-bold mb-1">نقاط التقييمات السلبية</p>
+                          <p className="text-xs text-gray-400">من أصل ٢ نقاط</p>
+                        </div>
+                        <p className="text-2xl font-bold text-red-500 mt-2">{employee.stats?.negative?.toFixed(2) || '0.00'}</p>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between sm:col-span-2">
+                        <div>
+                          <p className="text-gray-500 text-sm font-bold mb-1">نقاط الجودة (الشكاوى والسلامة)</p>
+                          <p className="text-xs text-gray-400">من أصل ٤ نقاط</p>
+                        </div>
+                        <p className="text-2xl font-bold text-blue-600 mt-2">{((employee.stats?.complaints === 0 && employee.stats?.safety === 0) ? 4 : (4 - (employee.stats?.complaints || 0) - (employee.stats?.safety || 0))).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               
             </motion.div>
