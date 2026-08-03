@@ -22,6 +22,7 @@ export const Leaderboard: React.FC = () => {
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showAllEmployeesModal, setShowAllEmployeesModal] = useState(false);
   const [showAllBranchesModal, setShowAllBranchesModal] = useState(false);
+  const [branchModalSelectedEmp, setBranchModalSelectedEmp] = useState<string | null>(null);
   
   const slidesData = useMemo(() => {
     // 1. Top 10 Employees
@@ -558,10 +559,10 @@ export const Leaderboard: React.FC = () => {
         const branchReviews = reviews.filter(r => r.branch === modalBranchName);
         let shiningStar = { name: 'لا يوجد', count: 0 };
         let bestPartnership = { names: 'لا يوجد', count: 0 };
+        const empCounts: Record<string, number> = {};
+        const pairCounts: Record<string, number> = {};
 
         if (branchReviews.length > 0 && showBranchModal) {
-          const empCounts: Record<string, number> = {};
-          const pairCounts: Record<string, number> = {};
 
           branchReviews.forEach(r => {
             r.linkedEmployeeIds.forEach(id => {
@@ -611,7 +612,7 @@ export const Leaderboard: React.FC = () => {
                   className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
                 >
                   <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
-                    <h3 className="text-xl font-bold">تقييمات فرع {modalBranchName}</h3>
+                    <h3 className="text-xl font-bold">{modalBranchName}</h3>
                     <button 
                       onClick={() => { setShowBranchModal(false); handleModalClose(); }}
                       className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
@@ -620,17 +621,65 @@ export const Leaderboard: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="bg-blue-50 p-4 border-b border-blue-100 grid grid-cols-3 gap-2 text-center shrink-0">
-                    <div className="bg-white rounded-xl p-2 shadow-sm border border-blue-100 flex flex-col justify-center">
+                  {/* Employees List */}
+                  <div className="p-3 border-b border-gray-100 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                     <div className="flex gap-2 w-max">
+                       <button 
+                         onClick={() => setBranchModalSelectedEmp(null)}
+                         className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors ${branchModalSelectedEmp === null ? 'bg-blue-600 text-white border-blue-600' : 'bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                       >الكل</button>
+                       {users.filter(u => u.branch === modalBranchName && u.role === 'employee').map(emp => (
+                         <button 
+                           key={emp.id}
+                           onClick={() => setBranchModalSelectedEmp(emp.id)}
+                           className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors flex items-center gap-2 ${branchModalSelectedEmp === emp.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                         >
+                           <img src={emp.imageUrl} alt={emp.name} className="w-5 h-5 rounded-full object-cover object-top" />
+                           {emp.name}
+                         </button>
+                       ))}
+                     </div>
+                  </div>
+
+                  {/* Visual Data (Contributions) */}
+                  <div className="p-4 bg-gray-50 border-b border-gray-100">
+                     <p className="text-sm font-bold text-gray-700 mb-3">مساهمات الموظفات (إجمالي {branchReviews.length} تقييم):</p>
+                     <div className="flex flex-col gap-3">
+                       {users.filter(u => u.branch === modalBranchName && u.role === 'employee').sort((a,b) => (empCounts[b.id]||0) - (empCounts[a.id]||0)).map(emp => {
+                         if (branchModalSelectedEmp && branchModalSelectedEmp !== emp.id) return null;
+                         const empCount = empCounts[emp.id] || 0;
+                         const percentage = branchReviews.length > 0 ? (empCount / branchReviews.length) * 100 : 0;
+                         return (
+                           <div key={emp.id} className="w-full">
+                             <div className="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                               <span>{emp.name}</span>
+                               <span>{empCount} تقييم ({percentage.toFixed(0)}%)</span>
+                             </div>
+                             <div className="w-full bg-gray-200 rounded-full h-2">
+                               <motion.div 
+                                 initial={{ width: 0 }} 
+                                 animate={{ width: `${percentage}%` }} 
+                                 transition={{ duration: 0.5 }}
+                                 className="bg-blue-500 h-2 rounded-full"
+                               />
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                  </div>
+
+                  <div className="bg-white p-4 border-b border-blue-100 grid grid-cols-3 gap-2 text-center shrink-0">
+                    <div className="bg-gray-50 rounded-xl p-2 shadow-sm border border-blue-100 flex flex-col justify-center">
                       <p className="text-[10px] sm:text-xs text-blue-600 font-bold mb-1">تقييمات الشهر</p>
                       <p className="text-lg sm:text-xl font-extrabold">{branchReviews.length}</p>
                     </div>
-                    <div className="bg-white rounded-xl p-2 shadow-sm border border-yellow-100 flex flex-col justify-center">
+                    <div className="bg-gray-50 rounded-xl p-2 shadow-sm border border-yellow-100 flex flex-col justify-center">
                       <p className="text-[10px] sm:text-xs text-yellow-600 font-bold mb-1">المتألقة</p>
                       <p className="text-xs sm:text-sm font-bold truncate">{shiningStar.name}</p>
                       <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{shiningStar.count} تقييم</p>
                     </div>
-                    <div className="bg-white rounded-xl p-2 shadow-sm border border-green-100 flex flex-col justify-center">
+                    <div className="bg-gray-50 rounded-xl p-2 shadow-sm border border-green-100 flex flex-col justify-center">
                       <p className="text-[10px] sm:text-xs text-green-600 font-bold mb-1">شراكة فعالة</p>
                       <p className="text-[10px] sm:text-[11px] font-bold leading-tight">{bestPartnership.names}</p>
                       <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{bestPartnership.count} مشترك</p>
@@ -638,7 +687,7 @@ export const Leaderboard: React.FC = () => {
                   </div>
 
                   <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-3">
-                    {branchReviews.map(r => (
+                    {(branchModalSelectedEmp ? branchReviews.filter(r => r.linkedEmployeeIds.includes(branchModalSelectedEmp)) : branchReviews).map(r => (
                       <div key={r.id} className="bg-white p-4 rounded-xl border shadow-sm relative">
                         <div className="flex justify-between items-start">
                           <div className="flex text-yellow-400 mb-2">★★★★★</div>
