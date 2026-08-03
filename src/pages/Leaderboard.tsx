@@ -464,7 +464,7 @@ export const Leaderboard: React.FC = () => {
       {/* All Branches Modal */}
       <AnimatePresence>
         {showAllBranchesModal && (() => {
-          const branches = ['جاليري', 'النخيل', 'اليرموك', 'طريق الملك عبدالله', 'العليا', 'المدينة'];
+          const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
           
           return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-alexandria touch-auto" dir="rtl">
@@ -488,8 +488,6 @@ export const Leaderboard: React.FC = () => {
               </div>
               <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-4">
                 {branches.map(branchName => {
-                  const branchEmps = users.filter(u => u.branch === branchName && u.role === 'employee').sort((a, b) => b.points - a.points);
-                  const top2 = branchEmps.slice(0, 2);
                   const currentMonth = new Date().getMonth();
                   const currentYear = new Date().getFullYear();
                   
@@ -502,32 +500,26 @@ export const Leaderboard: React.FC = () => {
                     }
                     return false;
                   });
+                  
+                  const positiveReviewsCount = branchMonthReviews.filter(r => parseInt(r.rating) >= 4).length;
 
                   return (
                     <div key={branchName} className="bg-white p-4 rounded-xl border shadow-sm">
                       <div className="flex justify-between items-center mb-3 border-b pb-2">
                         <h4 className="font-bold text-lg text-blue-800">{branchName}</h4>
                         <div className="text-left">
-                          <p className="text-xs text-gray-500">تقييمات الشهر</p>
+                          <p className="text-xs text-gray-500">إجمالي تقييمات الشهر</p>
                           <p className="text-xl font-black text-blue-600">{branchMonthReviews.length}</p>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 font-bold mb-2">أفضل موظفتين:</p>
-                      {top2.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-2">
-                          {top2.map(emp => (
-                            <div key={emp.id} className="flex items-center gap-2 bg-blue-50 rounded-lg p-2">
-                              <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover" />
-                              <div className="overflow-hidden">
-                                <p className="text-sm font-bold text-gray-800 truncate">{emp.name}</p>
-                                <p className="text-[10px] text-gray-500">{emp.points?.toFixed(2) || '0.00'} نقطة</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400">لا يوجد موظفات مسجلات</p>
-                      )}
+                      
+                      <div className="flex justify-between items-center bg-blue-50 rounded-lg p-3 border border-blue-100 mt-2">
+                        <p className="text-sm text-blue-800 font-bold flex items-center gap-2">
+                          <Star size={16} className="text-yellow-500 fill-yellow-500" />
+                          رصيد التقييمات
+                        </p>
+                        <p className="text-xl font-black text-blue-600">{positiveReviewsCount}</p>
+                      </div>
                     </div>
                   );
                 })}
