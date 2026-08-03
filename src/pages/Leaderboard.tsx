@@ -23,6 +23,7 @@ export const Leaderboard: React.FC = () => {
   const [showAllEmployeesModal, setShowAllEmployeesModal] = useState(false);
   const [showAllBranchesModal, setShowAllBranchesModal] = useState(false);
   const [branchModalSelectedEmp, setBranchModalSelectedEmp] = useState<string | null>(null);
+  const [manualBranchName, setManualBranchName] = useState<string | null>(null);
   
   const slidesData = useMemo(() => {
     // 1. Top 10 Employees
@@ -143,10 +144,10 @@ export const Leaderboard: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeSlide = slidesData[activeIndex] || slidesData[0];
   
-  const modalBranchName = activeSlide?.type === 'employee' ? activeSlide.data.branch 
+  const modalBranchName = manualBranchName || (activeSlide?.type === 'employee' ? activeSlide.data.branch 
     : activeSlide?.type === 'partnership' ? activeSlide.branch 
     : activeSlide?.type === 'active_branch' ? activeSlide.branch 
-    : undefined;
+    : undefined);
 
   const swiperRef = useRef<any>(null);
   const touchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -516,7 +517,14 @@ export const Leaderboard: React.FC = () => {
                   const top2 = branchEmps.sort((a, b) => (empPositiveReviewCounts[b.id] || 0) - (empPositiveReviewCounts[a.id] || 0)).slice(0, 2);
 
                   return (
-                    <div key={branchName} className="bg-white p-4 rounded-xl border shadow-sm">
+                    <div 
+                      key={branchName} 
+                      className="bg-white p-4 rounded-xl border shadow-sm cursor-pointer hover:border-blue-300 transition-colors relative"
+                      onClick={() => {
+                        setManualBranchName(branchName);
+                        setShowBranchModal(true);
+                      }}
+                    >
                       <div className="flex justify-between items-center mb-3 border-b pb-2">
                         <h4 className="font-bold text-lg text-blue-800">{branchName}</h4>
                         <div className="text-left">
@@ -527,17 +535,19 @@ export const Leaderboard: React.FC = () => {
                       
                       <p className="text-sm text-gray-600 font-bold mb-2 mt-2">أكثر الموظفات تفاعلاً:</p>
                       {top2.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2 relative z-10">
                           {top2.map(emp => (
-                            <EmployeeCard key={emp.id} employee={emp} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
-                              <button className="w-full flex items-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg p-2 border text-right">
-                                <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover object-top border shrink-0" />
-                                <div className="overflow-hidden flex-1">
-                                  <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
-                                  <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} التقييمات</p>
-                                </div>
-                              </button>
-                            </EmployeeCard>
+                            <div key={emp.id} onClick={(e) => e.stopPropagation()}>
+                              <EmployeeCard employee={emp} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
+                                <button className="w-full flex items-center gap-2 hover:opacity-80 transition-opacity text-right">
+                                  <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover object-top border shrink-0" />
+                                  <div className="overflow-hidden flex-1">
+                                    <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
+                                    <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} التقييمات</p>
+                                  </div>
+                                </button>
+                              </EmployeeCard>
+                            </div>
                           ))}
                         </div>
                       ) : (
@@ -605,7 +615,7 @@ export const Leaderboard: React.FC = () => {
                 <motion.div 
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                  onClick={() => { setShowBranchModal(false); handleModalClose(); }}
+                  onClick={() => { setShowBranchModal(false); setManualBranchName(null); handleModalClose(); }}
                 />
                 <motion.div 
                   initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
@@ -614,7 +624,7 @@ export const Leaderboard: React.FC = () => {
                   <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
                     <h3 className="text-xl font-bold">{modalBranchName}</h3>
                     <button 
-                      onClick={() => { setShowBranchModal(false); handleModalClose(); }}
+                      onClick={() => { setShowBranchModal(false); setManualBranchName(null); handleModalClose(); }}
                       className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
                     >
                       <X size={20} />
