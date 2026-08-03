@@ -39,7 +39,6 @@ export const Leaderboard: React.FC = () => {
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showAllEmployeesModal, setShowAllEmployeesModal] = useState(false);
   const [showAllBranchesModal, setShowAllBranchesModal] = useState(false);
-  const [branchModalSelectedEmp, setBranchModalSelectedEmp] = useState<string | null>(null);
   const [manualBranchName, setManualBranchName] = useState<string | null>(null);
   const [branchModalSelectedDate, setBranchModalSelectedDate] = useState<string | null>(null);
   
@@ -672,21 +671,15 @@ export const Leaderboard: React.FC = () => {
                   </div>
 
                   {/* Employees List */}
-                  <div className="p-3 border-b border-gray-100 overflow-x-auto whitespace-nowrap hide-scrollbar shrink-0">
-                     <div className="flex gap-2 w-max">
-                       <button 
-                         onClick={() => setBranchModalSelectedEmp(null)}
-                         className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors ${branchModalSelectedEmp === null ? 'bg-blue-600 text-white border-blue-600' : 'bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                       >الكل</button>
+                  <div className="p-3 border-b border-gray-100 shrink-0">
+                     <div className="flex flex-wrap justify-center gap-1.5">
                        {users.filter(u => u.branch === modalBranchName && u.role === 'employee').map(emp => (
-                         <button 
+                         <div 
                            key={emp.id}
-                           onClick={() => setBranchModalSelectedEmp(emp.id)}
-                           className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors flex items-center gap-2 ${branchModalSelectedEmp === emp.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                           className="px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold text-blue-900 bg-transparent border border-blue-100 shadow-[0_0_6px_rgba(59,130,246,0.2)]"
                          >
-                           <img src={emp.imageUrl} alt={emp.name} className="w-5 h-5 rounded-full object-cover object-top" />
                            {emp.name}
-                         </button>
+                         </div>
                        ))}
                      </div>
                   </div>
@@ -780,9 +773,7 @@ export const Leaderboard: React.FC = () => {
                   <div className="p-4 bg-gray-50 overflow-y-auto flex-1 min-h-0 space-y-3">
                     {(branchModalSelectedDate 
                       ? branchReviews.filter(r => r.businessDate === branchModalSelectedDate)
-                      : branchModalSelectedEmp 
-                        ? branchReviews.filter(r => r.linkedEmployeeIds.includes(branchModalSelectedEmp)) 
-                        : branchReviews
+                      : branchReviews
                     ).map(r => (
                       <div key={r.id} className="bg-white p-4 rounded-xl border shadow-sm relative">
                         <div className="flex justify-between items-start">
