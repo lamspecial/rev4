@@ -441,18 +441,20 @@ export const Leaderboard: React.FC = () => {
               </div>
               <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-3">
                 {users.filter(u => u.role === 'employee').sort((a, b) => b.points - a.points).map((emp, idx) => (
-                  <div key={emp.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">{idx + 1}</div>
-                    <img src={emp.imageUrl} alt={emp.name} className="w-12 h-12 rounded-full object-cover border-2 border-gray-100" />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800">{emp.name}</h4>
-                      <p className="text-xs text-gray-500">{emp.branch}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-black text-blue-600">{emp.points?.toFixed(2) || '0.00'}</p>
-                      <p className="text-[10px] text-gray-400">نقطة</p>
-                    </div>
-                  </div>
+                  <EmployeeCard key={emp.id} employee={emp} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
+                    <button className="w-full bg-white p-3 rounded-xl border shadow-sm flex items-center gap-4 hover:bg-gray-50 transition-colors text-right">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">{idx + 1}</div>
+                      <img src={emp.imageUrl} alt={emp.name} className="w-12 h-12 rounded-full object-cover border-2 border-gray-100 shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-800">{emp.name}</h4>
+                        <p className="text-xs text-gray-500">{emp.branch}</p>
+                      </div>
+                      <div className="text-center shrink-0">
+                        <p className="text-lg font-black text-blue-600">{emp.points?.toFixed(2) || '0.00'}</p>
+                        <p className="text-[10px] text-gray-400">نقطة</p>
+                      </div>
+                    </button>
+                  </EmployeeCard>
                 ))}
               </div>
             </motion.div>
