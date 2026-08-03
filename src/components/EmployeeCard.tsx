@@ -3,6 +3,7 @@ import type { UserAccount } from '../lib/mockData';
 import { X, CalendarClock, Star, Clock, Award } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../context/DataContext';
+import type { TimelineEvent } from '../context/DataContext';
 import { formatDateTime } from '../lib/formatDate';
 
 interface Props {
@@ -15,8 +16,10 @@ interface Props {
 export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen, onModalClose }) => {
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'shifts' | 'points'>('points');
-  const { reviews, users } = useData();
+  const { reviews, users, timeline } = useData();
   const employeeReviews = reviews.filter(r => r.linkedEmployeeIds.includes(employee.id));
+  const [selectedShift, setSelectedShift] = useState<TimelineEvent | null>(null);
+  const employeeShifts = timeline.filter(t => t.type === 'shift' && t.employees?.some(e => e.id === employee.id));
 
   let favoritePartnerName = '';
   if (employeeReviews.length > 0) {
@@ -170,21 +173,18 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                       <p className="text-3xl font-extrabold">{totalHours}</p>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col relative">
-                      <div className="absolute left-4 top-4 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">8 ساعات عمل</div>
-                      <p className="font-bold text-gray-800">الثلاثاء ٤ مايو اكتسبت ٦ تقييمات</p>
-                      <p className="text-xs text-gray-400 mt-1">(مع رغد واسماء)</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col relative">
-                      <div className="absolute left-4 top-4 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">8 ساعات عمل</div>
-                      <p className="font-bold text-gray-800">الخميس ٦ مايو اكتسبت ٣ تقييمات</p>
-                      <p className="text-xs text-gray-400 mt-1">(مع فاطمة فقط)</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col relative">
-                      <div className="absolute left-4 top-4 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">6 ساعات عمل</div>
-                      <p className="font-bold text-gray-800">السبت ٨ مايو اكتسبت ٤ تقييمات</p>
-                      <p className="text-xs text-gray-400 mt-1">(مع ياسمين ونورة)</p>
-                    </div>
+                    {employeeShifts.length > 0 ? employeeShifts.map((shift, idx) => {
+                      const shiftReviews = reviews.filter(r => r.branch === shift.branch && r.date === shift.date && r.linkedEmployeeIds.includes(employee.id));
+                      return (
+                        <div key={shift.id || idx} onClick={() => setSelectedShift(shift)} className="bg-white p-4 rounded-xl border shadow-sm flex flex-col relative cursor-pointer hover:bg-gray-50 transition-colors">
+                          <div className="absolute left-4 top-4 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">شفت {shift.time}</div>
+                          <p className="font-bold text-gray-800">{shift.date} اكتسبت {shiftReviews.length} تقييمات</p>
+                          <p className="text-xs text-gray-400 mt-1">(مع {shift.employees?.filter(e => e.id !== employee.id).map(e => e.name).join(' و ') || 'لا أحد'})</p>
+                        </div>
+                      );
+                    }) : (
+                      <p className="text-center text-gray-500 py-10">لا توجد شفتات مسجلة.</p>
+                    )}
                   </div>
                 ) : activeTab === 'points' ? (
                   <div className="space-y-4">
@@ -232,6 +232,64 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
           </div>
         )}
       </AnimatePresence>
+      <ShiftDetailsModal shift={selectedShift} onClose={() => setSelectedShift(null)} reviews={reviews} users={users} />
     </>
+  );
+};
+
+{/* Shift Details Modal */}
+export const ShiftDetailsModal = ({ shift, onClose, reviews, users }: { shift: TimelineEvent | null, onClose: () => void, reviews: any[], users: any[] }) => {
+  if (!shift) return null;
+  const shiftReviews = reviews.filter(r => r.branch === shift.branch && r.date === shift.date);
+  
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 touch-auto font-alexandria" dir="rtl">
+         <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+         <motion.div initial={{y:50, opacity:0}} animate={{y:0, opacity:1}} exit={{y:50, opacity:0}} className="relative w-full max-w-lg bg-gray-100 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center shrink-0">
+               <div>
+                 <h3 className="text-lg font-bold text-gray-800">{shift.branch} - {shift.date || 'اليوم'}</h3>
+                 <p className="text-sm text-gray-500">{shift.time} - {shift.endTime || 'نهاية اليوم'}</p>
+               </div>
+               <button onClick={onClose} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600"><X size={20}/></button>
+            </div>
+            <div className="p-4 bg-white mt-1 shadow-sm shrink-0">
+               <p className="text-sm font-bold text-gray-800 mb-2">فريق الشفت:</p>
+               <div className="flex flex-wrap gap-2">
+                  {shift.employees?.map((e, i) => <span key={i} className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-100">{e.name}</span>)}
+               </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+               <h4 className="font-bold text-gray-700 mb-2">تقييمات الشفت:</h4>
+               {shiftReviews.length === 0 ? (
+                  <p className="text-center text-gray-500 py-4">لا توجد تقييمات مسجلة في هذا الشفت.</p>
+               ) : (
+                  shiftReviews.map(r => (
+                     <div key={r.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                       <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg shrink-0">{r.reviewerName.charAt(0)}</div>
+                             <div>
+                                <p className="font-bold text-gray-800 text-sm">{r.reviewerName}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  {[1,2,3,4,5].map(s => <Star key={s} size={12} className={s <= parseInt(r.rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'} />)}
+                                  <span className="text-[10px] text-gray-400 mr-2">{r.time}</span>
+                                </div>
+                             </div>
+                          </div>
+                       </div>
+                       <p className="text-gray-700 text-sm mt-3 leading-relaxed">{r.comment || 'لا يوجد تعليق'}</p>
+                       <div className="mt-3 pt-3 border-t border-gray-50">
+                          <p className="text-[10px] text-gray-400 font-bold">اكتسب بواسطة:</p>
+                          <p className="text-xs text-blue-600 font-medium">{r.linkedEmployeeIds.map((id: string) => users.find((u: any) => u.id===id)?.name || id).join('، ')}</p>
+                       </div>
+                     </div>
+                  ))
+               )}
+            </div>
+         </motion.div>
+      </div>
+    </AnimatePresence>
   );
 };
