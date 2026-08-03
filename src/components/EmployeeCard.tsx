@@ -15,8 +15,33 @@ interface Props {
 export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen, onModalClose }) => {
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'shifts' | 'points'>('points');
-  const { reviews } = useData();
+  const { reviews, users } = useData();
   const employeeReviews = reviews.filter(r => r.linkedEmployeeIds.includes(employee.id));
+
+  let favoritePartnerName = '';
+  if (employeeReviews.length > 0) {
+    const partnerCounts: Record<string, number> = {};
+    employeeReviews.forEach(r => {
+      r.linkedEmployeeIds.forEach(id => {
+        if (id !== employee.id) {
+          partnerCounts[id] = (partnerCounts[id] || 0) + 1;
+        }
+      });
+    });
+    
+    let maxPartnerId = '';
+    let maxCount = 0;
+    Object.entries(partnerCounts).forEach(([id, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        maxPartnerId = id;
+      }
+    });
+
+    if (maxPartnerId) {
+      favoritePartnerName = users.find(u => u.id === maxPartnerId)?.name || '';
+    }
+  }
 
   useEffect(() => {
     if (showModal) {
@@ -60,17 +85,25 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
             >
               {/* Header */}
                 <div className="bg-blue-600 p-4 sm:p-6 text-white flex justify-between items-center sticky top-0 z-10">
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-bold">{employee.name}</h3>
-                    <p className="text-blue-100 text-sm mb-1">{employee.branch}</p>
-                    <div className="flex gap-2 mt-1">
-                      <p className="text-xs bg-blue-500/50 px-2 py-1 rounded-md">النقاط: {employee.points.toFixed(2)}</p>
-                      <p className="text-xs bg-blue-500/50 px-2 py-1 rounded-md">إجمالي التقييمات: {employee.reviewsCount}</p>
+                  <div className="flex items-center gap-4">
+                    <img src={employee.imageUrl} alt={employee.name} className="w-16 h-16 rounded-full object-cover object-top border-2 border-white/50 shadow-md shrink-0 bg-blue-200" />
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-bold">{employee.name}</h3>
+                      <p className="text-blue-100 text-sm mb-1">{employee.branch}</p>
+                      <div className="flex gap-2 mt-1 flex-wrap">
+                        <p className="text-[10px] sm:text-xs bg-blue-500/50 px-2 py-1 rounded-md">النقاط: {employee.points.toFixed(2)}</p>
+                        <p className="text-[10px] sm:text-xs bg-blue-500/50 px-2 py-1 rounded-md">إجمالي التقييمات: {employee.reviewsCount}</p>
+                      </div>
+                      {favoritePartnerName && (
+                        <p className="text-[10px] sm:text-xs text-blue-100 mt-2 font-medium bg-blue-800/40 w-fit px-2 py-1 rounded-full">
+                          شريكتي المفضلة: {favoritePartnerName}
+                        </p>
+                      )}
                     </div>
                   </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); setShowModal(false); }}
-                  className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full transition-colors self-start"
+                  className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full transition-colors self-start shrink-0"
                 >
                   <X size={24} />
                 </button>
