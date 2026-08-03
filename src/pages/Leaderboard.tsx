@@ -695,44 +695,45 @@ export const Leaderboard: React.FC = () => {
                   <div className="p-4 bg-gray-50 border-b border-gray-100">
                      <p className="text-sm font-bold text-gray-700 mb-3">تقييمات الشهر الحالي (الخريطة الحرارية):</p>
                      
-                     <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center text-[10px] sm:text-xs text-gray-400 font-bold">
-                       <div>أحد</div><div>إثنين</div><div>ثلاثاء</div><div>أربعاء</div><div>خميس</div><div>جمعة</div><div>سبت</div>
-                     </div>
-                     <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                       {calendarCells.map((day, idx) => {
-                         if (!day) return <div key={`empty-${idx}`} className="aspect-square"></div>;
-                         
-                         const dateStr = `${String(day).padStart(2, '0')}-${String(currentMonth + 1).padStart(2, '0')}-${currentYear}`;
-                         const count = reviewCountsByDate[dateStr] || 0;
-                         
-                         // Calculate shade of blue
-                         let bgClass = "bg-gray-100 text-gray-400";
-                         if (count > 0) {
-                           const ratio = count / (maxDailyReviews || 1);
-                           if (ratio > 0.8) bgClass = "bg-blue-700 text-white";
-                           else if (ratio > 0.5) bgClass = "bg-blue-500 text-white";
-                           else if (ratio > 0.2) bgClass = "bg-blue-400 text-white";
-                           else bgClass = "bg-blue-200 text-blue-900";
-                         }
+                     <div className="max-w-[280px] mx-auto">
+                       <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center text-[10px] text-gray-400 font-bold">
+                         <div>أحد</div><div>إثنين</div><div>ثلاثاء</div><div>أربعاء</div><div>خميس</div><div>جمعة</div><div>سبت</div>
+                       </div>
+                       <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                         {calendarCells.map((day, idx) => {
+                           if (!day) return <div key={`empty-${idx}`} className="w-full aspect-square"></div>;
+                           
+                           const dateStr = `${String(day).padStart(2, '0')}-${String(currentMonth + 1).padStart(2, '0')}-${currentYear}`;
+                           const count = reviewCountsByDate[dateStr] || 0;
+                           
+                           // Calculate shade of blue
+                           let bgClass = "bg-transparent text-gray-400";
+                           if (count > 0) {
+                             const ratio = count / (maxDailyReviews || 1);
+                             if (ratio > 0.8) bgClass = "bg-blue-700 text-white shadow-sm";
+                             else if (ratio > 0.5) bgClass = "bg-blue-500 text-white shadow-sm";
+                             else if (ratio > 0.2) bgClass = "bg-blue-400 text-white shadow-sm";
+                             else bgClass = "bg-blue-200 text-blue-900 shadow-sm";
+                           }
 
-                         const isSelected = branchModalSelectedDate === dateStr;
+                           const isSelected = branchModalSelectedDate === dateStr;
 
-                         return (
-                           <button 
-                             key={day}
-                             onClick={() => setBranchModalSelectedDate(isSelected ? null : dateStr)}
-                             className={`aspect-square flex flex-col items-center justify-center rounded-lg transition-all ${bgClass} ${isSelected ? 'ring-2 ring-offset-2 ring-blue-600 scale-105 shadow-md' : 'hover:opacity-80'}`}
-                           >
-                             <span className="text-xs sm:text-sm font-bold">{day}</span>
-                             {count > 0 && <span className="text-[9px] opacity-80">{count}</span>}
-                           </button>
-                         );
-                       })}
-                     </div>
-                     <div className="mt-4 flex justify-between items-center text-[10px] text-gray-400 font-bold">
-                       <span>أقل تفاعلاً</span>
-                       <div className="flex-1 mx-4 h-2 bg-gradient-to-l from-blue-700 via-blue-400 to-gray-200 rounded-full"></div>
-                       <span>ذروة التفاعل</span>
+                           return (
+                             <button 
+                               key={day}
+                               onClick={() => setBranchModalSelectedDate(isSelected ? null : dateStr)}
+                               className={`w-full aspect-square flex items-center justify-center rounded-md transition-all ${bgClass} ${isSelected ? 'ring-2 ring-offset-1 ring-blue-600 scale-105 shadow-md z-10 relative' : 'hover:opacity-80'}`}
+                             >
+                               <span className="text-[10px] font-bold">{day}</span>
+                             </button>
+                           );
+                         })}
+                       </div>
+                       <div className="mt-4 flex justify-between items-center text-[9px] text-gray-400 font-bold px-2">
+                         <span>أقل تفاعلاً</span>
+                         <div className="flex-1 mx-3 h-1.5 bg-gradient-to-l from-blue-700 via-blue-400 to-transparent border border-gray-100 rounded-full"></div>
+                         <span>ذروة التفاعل</span>
+                       </div>
                      </div>
                   </div>
 
