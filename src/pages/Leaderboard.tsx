@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCreative, Autoplay } from 'swiper/modules';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ScrollText, X, Building2, Users, Star, MessageSquareHeart, TrendingUp } from 'lucide-react';
+import { X, Building2, Users, Star, MessageSquareHeart, TrendingUp } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/effect-creative';
 import { EmployeeCard } from '../components/EmployeeCard';
@@ -329,7 +329,6 @@ export const Leaderboard: React.FC = () => {
                   <EmployeeCard employee={activeSlide.data} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
                     <button className="flex items-center gap-2 hover:scale-105 transition-transform group">
                       <h2 className="text-3xl sm:text-5xl font-bold mb-1">{activeSlide.data.name}</h2>
-                      <ScrollText size={28} className="opacity-80 group-hover:opacity-100" />
                     </button>
                   </EmployeeCard>
                   
