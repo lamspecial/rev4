@@ -659,9 +659,9 @@ export const Leaderboard: React.FC = () => {
                 />
                 <motion.div 
                   initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
-                  className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                  className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] md:max-h-[85vh]"
                 >
-                  <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
+                  <div className="bg-blue-600 p-4 text-white flex justify-between items-center shrink-0">
                     <h3 className="text-xl font-bold">{modalBranchName}</h3>
                     <button 
                       onClick={() => { setShowBranchModal(false); setManualBranchName(null); setBranchModalSelectedDate(null); handleModalClose(); }}
@@ -672,7 +672,7 @@ export const Leaderboard: React.FC = () => {
                   </div>
 
                   {/* Employees List */}
-                  <div className="p-3 border-b border-gray-100 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                  <div className="p-3 border-b border-gray-100 overflow-x-auto whitespace-nowrap hide-scrollbar shrink-0">
                      <div className="flex gap-2 w-max">
                        <button 
                          onClick={() => setBranchModalSelectedEmp(null)}
@@ -692,7 +692,7 @@ export const Leaderboard: React.FC = () => {
                   </div>
 
                   {/* Visual Data (Calendar Heatmap) */}
-                  <div className="p-4 bg-gray-50 border-b border-gray-100">
+                  <div className="p-4 bg-gray-50 border-b border-gray-100 shrink-0">
                      <p className="text-sm font-bold text-gray-700 mb-3">تقييمات الشهر الحالي (الخريطة الحرارية):</p>
                      
                      <div className="max-w-[280px] mx-auto">
@@ -738,7 +738,7 @@ export const Leaderboard: React.FC = () => {
                   </div>
 
                   {branchModalSelectedDate && (
-                    <div className="bg-blue-50 p-4 border-b border-blue-100 shadow-inner">
+                    <div className="bg-blue-50 p-4 border-b border-blue-100 shadow-inner shrink-0">
                        <p className="text-xs font-bold text-blue-800 mb-2">الفريق المداوم في {branchModalSelectedDate}:</p>
                        <div className="flex flex-wrap gap-2">
                          {(() => {
@@ -777,7 +777,7 @@ export const Leaderboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-3">
+                  <div className="p-4 bg-gray-50 overflow-y-auto flex-1 min-h-0 space-y-3">
                     {(branchModalSelectedDate 
                       ? branchReviews.filter(r => r.businessDate === branchModalSelectedDate)
                       : branchModalSelectedEmp 
