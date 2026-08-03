@@ -528,13 +528,15 @@ export const Leaderboard: React.FC = () => {
                       {top2.length > 0 ? (
                         <div className="grid grid-cols-2 gap-2">
                           {top2.map(emp => (
-                            <div key={emp.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border">
-                              <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover object-top border" />
-                              <div className="overflow-hidden">
-                                <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
-                                <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} التقييمات</p>
-                              </div>
-                            </div>
+                            <EmployeeCard key={emp.id} employee={emp} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
+                              <button className="w-full flex items-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg p-2 border text-right">
+                                <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover object-top border shrink-0" />
+                                <div className="overflow-hidden flex-1">
+                                  <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
+                                  <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} التقييمات</p>
+                                </div>
+                              </button>
+                            </EmployeeCard>
                           ))}
                         </div>
                       ) : (
