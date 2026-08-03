@@ -479,7 +479,7 @@ export const Leaderboard: React.FC = () => {
               className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
             >
               <div className="bg-blue-600 p-4 text-white flex justify-between items-center shrink-0">
-                <h3 className="text-xl font-bold flex items-center gap-2"><Building2 size={24} /> فروع لام سبيشل</h3>
+                <h3 className="text-xl font-bold flex items-center gap-2"><Building2 size={24} /> الفروع</h3>
                 <button 
                   onClick={() => { setShowAllBranchesModal(false); handleModalClose(); }}
                   className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
@@ -502,7 +502,18 @@ export const Leaderboard: React.FC = () => {
                     return false;
                   });
                   
-                  const positiveReviewsCount = branchMonthReviews.filter(r => parseInt(r.rating) >= 4).length;
+                  const branchMonthPositiveReviews = branchMonthReviews.filter(r => parseInt(r.rating) >= 4);
+                  const positiveReviewsCount = branchMonthPositiveReviews.length;
+                  
+                  const empPositiveReviewCounts: Record<string, number> = {};
+                  branchMonthPositiveReviews.forEach(r => {
+                    r.linkedEmployeeIds.forEach(id => {
+                      empPositiveReviewCounts[id] = (empPositiveReviewCounts[id] || 0) + 1;
+                    });
+                  });
+
+                  const branchEmps = users.filter(u => u.branch === branchName && u.role === 'employee');
+                  const top2 = branchEmps.sort((a, b) => (empPositiveReviewCounts[b.id] || 0) - (empPositiveReviewCounts[a.id] || 0)).slice(0, 2);
 
                   return (
                     <div key={branchName} className="bg-white p-4 rounded-xl border shadow-sm">
@@ -514,13 +525,30 @@ export const Leaderboard: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="flex justify-between items-center bg-blue-50 rounded-lg p-3 border border-blue-100 mt-2">
+                      <div className="flex justify-between items-center bg-blue-50 rounded-lg p-3 border border-blue-100 mt-2 mb-3">
                         <p className="text-sm text-blue-800 font-bold flex items-center gap-2">
                           <Star size={16} className="text-yellow-500 fill-yellow-500" />
                           رصيد التقييمات
                         </p>
                         <p className="text-xl font-black text-blue-600">{positiveReviewsCount}</p>
                       </div>
+
+                      <p className="text-sm text-gray-600 font-bold mb-2">أكثر الموظفات تفاعلاً:</p>
+                      {top2.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {top2.map(emp => (
+                            <div key={emp.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border">
+                              <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover border" />
+                              <div className="overflow-hidden">
+                                <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
+                                <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} رصيد</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">لا يوجد موظفات مسجلات</p>
+                      )}
                     </div>
                   );
                 })}
