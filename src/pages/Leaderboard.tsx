@@ -17,13 +17,31 @@ type SlideData =
   | { type: 'active_employee'; employee: UserAccount; count: number }
   | { type: 'praised_employee'; employee: UserAccount; count: number; texts: string[] };
 
+const getBusinessDate = (dateStr: string, timeStr: string, branchStartStr: string) => {
+  if (!branchStartStr || !dateStr || !timeStr) return dateStr;
+  const bTime = parseInt(branchStartStr.replace(':', ''), 10);
+  const rTime = parseInt(timeStr.replace(':', ''), 10);
+  
+  if (rTime < bTime && rTime < 1200) {
+    const [d, m, y] = dateStr.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() - 1);
+    const pd = String(dateObj.getDate()).padStart(2, '0');
+    const pm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const py = dateObj.getFullYear();
+    return `${pd}-${pm}-${py}`;
+  }
+  return dateStr;
+};
+
 export const Leaderboard: React.FC = () => {
-  const { users, reviews } = useData();
+  const { users, reviews, timeline, branchSettings } = useData();
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showAllEmployeesModal, setShowAllEmployeesModal] = useState(false);
   const [showAllBranchesModal, setShowAllBranchesModal] = useState(false);
   const [branchModalSelectedEmp, setBranchModalSelectedEmp] = useState<string | null>(null);
   const [manualBranchName, setManualBranchName] = useState<string | null>(null);
+  const [branchModalSelectedDate, setBranchModalSelectedDate] = useState<string | null>(null);
   
   const slidesData = useMemo(() => {
     // 1. Top 10 Employees
@@ -566,7 +584,29 @@ export const Leaderboard: React.FC = () => {
       {/* Branch Modal (from slide) */}
       {(() => {
         if (!modalBranchName) return null;
-        const branchReviews = reviews.filter(r => r.branch === modalBranchName);
+        const branchStart = branchSettings[modalBranchName]?.start || '16:00';
+        
+        const branchReviews = reviews.filter(r => r.branch === modalBranchName).map(r => ({
+           ...r,
+           businessDate: getBusinessDate(r.date, r.time, branchStart)
+        }));
+        
+        const reviewCountsByDate: Record<string, number> = {};
+        branchReviews.forEach(r => {
+           reviewCountsByDate[r.businessDate] = (reviewCountsByDate[r.businessDate] || 0) + 1;
+        });
+        const maxDailyReviews = Math.max(0, ...Object.values(reviewCountsByDate));
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
+        
+        const calendarCells = [];
+        for(let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
+        for(let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
+
         let shiningStar = { name: 'لا يوجد', count: 0 };
         let bestPartnership = { names: 'لا يوجد', count: 0 };
         const empCounts: Record<string, number> = {};
@@ -615,7 +655,7 @@ export const Leaderboard: React.FC = () => {
                 <motion.div 
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                  onClick={() => { setShowBranchModal(false); setManualBranchName(null); handleModalClose(); }}
+                  onClick={() => { setShowBranchModal(false); setManualBranchName(null); setBranchModalSelectedDate(null); handleModalClose(); }}
                 />
                 <motion.div 
                   initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
@@ -624,7 +664,7 @@ export const Leaderboard: React.FC = () => {
                   <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
                     <h3 className="text-xl font-bold">{modalBranchName}</h3>
                     <button 
-                      onClick={() => { setShowBranchModal(false); setManualBranchName(null); handleModalClose(); }}
+                      onClick={() => { setShowBranchModal(false); setManualBranchName(null); setBranchModalSelectedDate(null); handleModalClose(); }}
                       className="p-2 bg-blue-500/50 hover:bg-blue-500 rounded-full"
                     >
                       <X size={20} />
@@ -651,33 +691,73 @@ export const Leaderboard: React.FC = () => {
                      </div>
                   </div>
 
-                  {/* Visual Data (Contributions) */}
+                  {/* Visual Data (Calendar Heatmap) */}
                   <div className="p-4 bg-gray-50 border-b border-gray-100">
-                     <p className="text-sm font-bold text-gray-700 mb-3">مساهمات الموظفات (إجمالي {branchReviews.length} تقييم):</p>
-                     <div className="flex flex-col gap-3">
-                       {users.filter(u => u.branch === modalBranchName && u.role === 'employee').sort((a,b) => (empCounts[b.id]||0) - (empCounts[a.id]||0)).map(emp => {
-                         if (branchModalSelectedEmp && branchModalSelectedEmp !== emp.id) return null;
-                         const empCount = empCounts[emp.id] || 0;
-                         const percentage = branchReviews.length > 0 ? (empCount / branchReviews.length) * 100 : 0;
+                     <p className="text-sm font-bold text-gray-700 mb-3">تقييمات الشهر الحالي (الخريطة الحرارية):</p>
+                     
+                     <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center text-[10px] sm:text-xs text-gray-400 font-bold">
+                       <div>أحد</div><div>إثنين</div><div>ثلاثاء</div><div>أربعاء</div><div>خميس</div><div>جمعة</div><div>سبت</div>
+                     </div>
+                     <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                       {calendarCells.map((day, idx) => {
+                         if (!day) return <div key={`empty-${idx}`} className="aspect-square"></div>;
+                         
+                         const dateStr = `${String(day).padStart(2, '0')}-${String(currentMonth + 1).padStart(2, '0')}-${currentYear}`;
+                         const count = reviewCountsByDate[dateStr] || 0;
+                         
+                         // Calculate shade of blue
+                         let bgClass = "bg-gray-100 text-gray-400";
+                         if (count > 0) {
+                           const ratio = count / (maxDailyReviews || 1);
+                           if (ratio > 0.8) bgClass = "bg-blue-700 text-white";
+                           else if (ratio > 0.5) bgClass = "bg-blue-500 text-white";
+                           else if (ratio > 0.2) bgClass = "bg-blue-400 text-white";
+                           else bgClass = "bg-blue-200 text-blue-900";
+                         }
+
+                         const isSelected = branchModalSelectedDate === dateStr;
+
                          return (
-                           <div key={emp.id} className="w-full">
-                             <div className="flex justify-between text-xs font-bold text-gray-600 mb-1">
-                               <span>{emp.name}</span>
-                               <span>{empCount} تقييم ({percentage.toFixed(0)}%)</span>
-                             </div>
-                             <div className="w-full bg-gray-200 rounded-full h-2">
-                               <motion.div 
-                                 initial={{ width: 0 }} 
-                                 animate={{ width: `${percentage}%` }} 
-                                 transition={{ duration: 0.5 }}
-                                 className="bg-blue-500 h-2 rounded-full"
-                               />
-                             </div>
-                           </div>
+                           <button 
+                             key={day}
+                             onClick={() => setBranchModalSelectedDate(isSelected ? null : dateStr)}
+                             className={`aspect-square flex flex-col items-center justify-center rounded-lg transition-all ${bgClass} ${isSelected ? 'ring-2 ring-offset-2 ring-blue-600 scale-105 shadow-md' : 'hover:opacity-80'}`}
+                           >
+                             <span className="text-xs sm:text-sm font-bold">{day}</span>
+                             {count > 0 && <span className="text-[9px] opacity-80">{count}</span>}
+                           </button>
                          );
                        })}
                      </div>
+                     <div className="mt-4 flex justify-between items-center text-[10px] text-gray-400 font-bold">
+                       <span>أقل تفاعلاً</span>
+                       <div className="flex-1 mx-4 h-2 bg-gradient-to-l from-blue-700 via-blue-400 to-gray-200 rounded-full"></div>
+                       <span>ذروة التفاعل</span>
+                     </div>
                   </div>
+
+                  {branchModalSelectedDate && (
+                    <div className="bg-blue-50 p-4 border-b border-blue-100 shadow-inner">
+                       <p className="text-xs font-bold text-blue-800 mb-2">الفريق المداوم في {branchModalSelectedDate}:</p>
+                       <div className="flex flex-wrap gap-2">
+                         {(() => {
+                           const dayShifts = timeline.filter(t => t.branch === modalBranchName && t.type === 'shift' && t.date === branchModalSelectedDate);
+                           const empIds = new Set<string>();
+                           dayShifts.forEach(s => s.employees?.forEach(e => empIds.add(e.id)));
+                           const emps = users.filter(u => empIds.has(u.id));
+                           
+                           if (emps.length === 0) return <p className="text-xs text-gray-500">لا توجد شفتات مسجلة.</p>;
+                           
+                           return emps.map(emp => (
+                             <div key={emp.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-blue-100 text-xs text-blue-700 font-bold shadow-sm">
+                               <img src={emp.imageUrl} alt={emp.name} className="w-5 h-5 rounded-full object-cover object-top" />
+                               {emp.name}
+                             </div>
+                           ));
+                         })()}
+                       </div>
+                    </div>
+                  )}
 
                   <div className="bg-white p-4 border-b border-blue-100 grid grid-cols-3 gap-2 text-center shrink-0">
                     <div className="bg-gray-50 rounded-xl p-2 shadow-sm border border-blue-100 flex flex-col justify-center">
@@ -697,7 +777,12 @@ export const Leaderboard: React.FC = () => {
                   </div>
 
                   <div className="p-4 bg-gray-50 overflow-y-auto flex-1 space-y-3">
-                    {(branchModalSelectedEmp ? branchReviews.filter(r => r.linkedEmployeeIds.includes(branchModalSelectedEmp)) : branchReviews).map(r => (
+                    {(branchModalSelectedDate 
+                      ? branchReviews.filter(r => r.businessDate === branchModalSelectedDate)
+                      : branchModalSelectedEmp 
+                        ? branchReviews.filter(r => r.linkedEmployeeIds.includes(branchModalSelectedEmp)) 
+                        : branchReviews
+                    ).map(r => (
                       <div key={r.id} className="bg-white p-4 rounded-xl border shadow-sm relative">
                         <div className="flex justify-between items-start">
                           <div className="flex text-yellow-400 mb-2">★★★★★</div>
