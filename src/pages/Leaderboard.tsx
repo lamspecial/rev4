@@ -240,8 +240,8 @@ export const Leaderboard: React.FC = () => {
                   <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-blue-50 to-indigo-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-center items-center p-6 text-center gap-4 relative overflow-hidden rtl" dir="rtl">
                     <Users size={64} className="text-blue-500 opacity-20 absolute top-10 right-10" />
                     <div className="flex items-center justify-center -space-x-8 rtl:space-x-reverse mt-4">
-                      <img src={slide.emp1.imageUrl} alt={slide.emp1.name} className="w-28 h-28 rounded-full border-4 border-white shadow-xl object-cover bg-white z-10" />
-                      <img src={slide.emp2.imageUrl} alt={slide.emp2.name} className="w-28 h-28 rounded-full border-4 border-white shadow-xl object-cover bg-white z-0 -ml-8" />
+                      <img src={slide.emp1.imageUrl} alt={slide.emp1.name} className="w-28 h-28 rounded-full border-4 border-white shadow-xl object-cover object-top bg-white z-10" />
+                      <img src={slide.emp2.imageUrl} alt={slide.emp2.name} className="w-28 h-28 rounded-full border-4 border-white shadow-xl object-cover object-top bg-white z-0 -ml-8" />
                     </div>
                     <div className="z-10 mt-4 bg-white/60 backdrop-blur-sm p-4 rounded-3xl w-full shadow-sm">
                       <h4 className="text-xl font-black text-gray-800 leading-tight">{slide.emp1.name}</h4>
@@ -266,7 +266,7 @@ export const Leaderboard: React.FC = () => {
                 {slide.type === 'active_employee' && (
                   <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-amber-50 to-orange-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-center items-center p-6 text-center relative overflow-hidden rtl" dir="rtl">
                     <Star size={64} className="text-orange-500 opacity-20 absolute top-10 right-10" />
-                    <img src={slide.employee.imageUrl} alt={slide.employee.name} className="w-40 h-40 rounded-full border-4 border-white shadow-xl object-cover bg-white mb-6 z-10" />
+                    <img src={slide.employee.imageUrl} alt={slide.employee.name} className="w-40 h-40 rounded-full border-4 border-white shadow-xl object-cover object-top bg-white mb-6 z-10" />
                     <h3 className="text-3xl font-black text-gray-800 leading-tight z-10">{slide.employee.name}</h3>
                     <p className="text-orange-700 font-bold bg-orange-100 px-4 py-2 rounded-full mt-4 z-10 text-sm shadow-inner">نشاط متصاعد بقوة</p>
                   </div>
@@ -275,7 +275,7 @@ export const Leaderboard: React.FC = () => {
                 {slide.type === 'praised_employee' && (
                   <div className="w-full max-w-[300px] h-[50vh] bg-gradient-to-br from-pink-50 to-rose-100 rounded-[3rem] shadow-xl border-4 border-white flex flex-col justify-start items-center p-6 text-center relative overflow-hidden rtl" dir="rtl">
                     <MessageSquareHeart size={64} className="text-pink-500 opacity-10 absolute bottom-10 left-10" />
-                    <img src={slide.employee.imageUrl} alt={slide.employee.name} className="w-24 h-24 rounded-full border-4 border-pink-200 shadow-lg object-cover bg-white mb-4 z-10 shrink-0" />
+                    <img src={slide.employee.imageUrl} alt={slide.employee.name} className="w-24 h-24 rounded-full border-4 border-pink-200 shadow-lg object-cover object-top bg-white mb-4 z-10 shrink-0" />
                     <h3 className="text-2xl font-black text-gray-800 leading-tight z-10 shrink-0">{slide.employee.name}</h3>
                     
                     <div className="mt-4 flex flex-col gap-3 w-full z-10 overflow-hidden">
@@ -444,7 +444,7 @@ export const Leaderboard: React.FC = () => {
                   <EmployeeCard key={emp.id} employee={emp} onModalOpen={handleModalOpen} onModalClose={handleModalClose}>
                     <button className="w-full bg-white p-3 rounded-xl border shadow-sm flex items-center gap-4 hover:bg-gray-50 transition-colors text-right">
                       <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">{idx + 1}</div>
-                      <img src={emp.imageUrl} alt={emp.name} className="w-12 h-12 rounded-full object-cover border-2 border-gray-100 shrink-0" />
+                      <img src={emp.imageUrl} alt={emp.name} className="w-12 h-12 rounded-full object-cover object-top border-2 border-gray-100 shrink-0" />
                       <div className="flex-1">
                         <h4 className="font-bold text-gray-800">{emp.name}</h4>
                         <p className="text-xs text-gray-500">{emp.branch}</p>
@@ -503,7 +503,6 @@ export const Leaderboard: React.FC = () => {
                   });
                   
                   const branchMonthPositiveReviews = branchMonthReviews.filter(r => parseInt(r.rating) >= 4);
-                  const positiveReviewsCount = branchMonthPositiveReviews.length;
                   
                   const empPositiveReviewCounts: Record<string, number> = {};
                   branchMonthPositiveReviews.forEach(r => {
@@ -525,23 +524,15 @@ export const Leaderboard: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="flex justify-between items-center bg-blue-50 rounded-lg p-3 border border-blue-100 mt-2 mb-3">
-                        <p className="text-sm text-blue-800 font-bold flex items-center gap-2">
-                          <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                          رصيد التقييمات
-                        </p>
-                        <p className="text-xl font-black text-blue-600">{positiveReviewsCount}</p>
-                      </div>
-
-                      <p className="text-sm text-gray-600 font-bold mb-2">أكثر الموظفات تفاعلاً:</p>
+                      <p className="text-sm text-gray-600 font-bold mb-2 mt-2">أكثر الموظفات تفاعلاً:</p>
                       {top2.length > 0 ? (
                         <div className="grid grid-cols-2 gap-2">
                           {top2.map(emp => (
                             <div key={emp.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border">
-                              <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover border" />
+                              <img src={emp.imageUrl} alt={emp.name} className="w-8 h-8 rounded-full object-cover object-top border" />
                               <div className="overflow-hidden">
                                 <p className="text-xs font-bold text-gray-800 truncate">{emp.name}</p>
-                                <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} رصيد</p>
+                                <p className="text-[10px] text-blue-600 font-bold">{empPositiveReviewCounts[emp.id] || 0} التقييمات</p>
                               </div>
                             </div>
                           ))}
