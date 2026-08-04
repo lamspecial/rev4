@@ -121,64 +121,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return newUsers;
     });
     
-    // Save to localStorage outside of React state updater to prevent crashes
-    setTimeout(() => {
-      try {
-        if (newUsers.length > 0) {
-          safeStorageSet('app_users_v5', JSON.stringify(newUsers));
-        }
-      } catch (e) {
-        console.error('LocalStorage Quota Exceeded for users', e);
-        alert('مساحة التخزين ممتلئة! تعذر حفظ التغييرات الأخيرة. يرجى حذف بعض البيانات أو استخدام صور أصغر حجماً.');
-      }
-    }, 0);
+    // Storage now handled by useEffect
   };
 
   const updateBranchSettings = (branch: string, start: string, end: string, googleApi?: string, nextDayTime?: string) => {
     const current = branchSettings[branch] || {};
     const newSettings = { ...branchSettings, [branch]: { start, end, googleApi: googleApi !== undefined ? googleApi : current.googleApi, nextDayTime: nextDayTime !== undefined ? nextDayTime : current.nextDayTime } };
     setBranchSettings(newSettings);
-    try {
-      safeStorageSet('app_branch_settings', JSON.stringify(newSettings));
-    } catch (e) { console.error(e); }
+    try { /* Storage now handled by useEffect */ } catch (e) { console.error(e); }
   };
 
   const addTimelineComment = (id: string, comment: string) => {
     const newTimeline = timeline.map(t => t.id === id ? { ...t, comment } : t);
     setTimeline(newTimeline);
-    try {
-      safeStorageSet('app_timeline', JSON.stringify(newTimeline));
-    } catch (e) { console.error(e); }
+    try { /* Storage now handled by useEffect */ } catch (e) { console.error(e); }
   };
 
   const addTimelineEvent = (event: Omit<TimelineEvent, 'id'>) => {
     const newTimeline = [{ ...event, id: Date.now().toString() }, ...timeline];
     setTimeline(newTimeline);
-    try {
-      safeStorageSet('app_timeline', JSON.stringify(newTimeline));
-    } catch (e) { console.error(e); }
+    try { /* Storage now handled by useEffect */ } catch (e) { console.error(e); }
   };
 
   const updateTimelineEvent = (id: string, updates: Partial<TimelineEvent>) => {
     const newTimeline = timeline.map(t => t.id === id ? { ...t, ...updates } : t);
     setTimeline(newTimeline);
-    try { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    // Storage now handled by useEffect
   };
 
   const deleteTimelineEvent = (id: string) => {
     const newTimeline = timeline.filter(t => t.id !== id);
     setTimeline(newTimeline);
-    try { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    // Storage now handled by useEffect
   };
 
   const undoBatch = (batchId: string) => {
     const newTimeline = timeline.filter(t => t.batchId !== batchId);
     setTimeline(newTimeline);
-    try { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    // Storage now handled by useEffect
     
     const newReviews = reviews.filter(r => r.batchId !== batchId);
     setReviews(newReviews);
-    try { safeStorageSet('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+    // Storage now handled by useEffect
   };
 
   const addUser = (newUser: Omit<UserAccount, 'points' | 'reviewsCount'>) => {
@@ -186,7 +170,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newUsers = [...users, userWithDefaults];
     setUsers(newUsers);
     try {
-      safeStorageSet('app_users_v5', JSON.stringify(newUsers));
+      // Storage now handled by useEffect
     } catch (e) { console.error(e); }
   };
 
@@ -194,21 +178,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newUsers = users.filter(u => u.id !== id);
     setUsers(newUsers);
     try {
-      safeStorageSet('app_users_v5', JSON.stringify(newUsers));
+      // Storage now handled by useEffect
     } catch (e) { console.error(e); }
   };
 
   const updateReview = (id: string, updates: Partial<CustomerReview>) => {
     const newReviews = reviews.map(r => r.id === id ? { ...r, ...updates } : r);
     setReviews(newReviews);
-    try { safeStorageSet('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+    // Storage now handled by useEffect
   };
 
   const deleteReview = (id: string) => {
     const newReviews = reviews.filter(r => r.id !== id);
     setReviews(newReviews);
     deleteTimelineEvent(id);
-    try { safeStorageSet('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+    // Storage now handled by useEffect
   };
 
   const parseReviewsText = (branch: string, text: string, batchId?: string) => {
@@ -299,7 +283,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const commitReviews = (newReviews: CustomerReview[], newTimelineEvents: TimelineEvent[]) => {
     setReviews(prev => {
       const updated = [...newReviews, ...prev];
-      setTimeout(() => { safeStorageSet('app_reviews', JSON.stringify(updated)); }, 0);
       return updated;
     });
 
@@ -310,7 +293,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
            const bTime = parseInt(b.time.replace(':', '')) || 0;
            return bTime - aTime;
         });
-        setTimeout(() => { safeStorageSet('app_timeline', JSON.stringify(updatedT)); }, 0);
         return updatedT;
       });
     }
@@ -325,7 +307,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
          const bTime = parseInt(b.time.replace(':', '')) || 0;
          return bTime - aTime;
       });
-      setTimeout(() => { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); }, 0);
       return newTimeline;
     });
   };
@@ -435,7 +416,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return false; // remove
       });
-      setTimeout(() => safeStorageSet('app_timeline', JSON.stringify(updated)), 0);
       return updated;
     });
 
@@ -447,10 +427,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return false;
       });
-      setTimeout(() => safeStorageSet('app_reviews', JSON.stringify(updated)), 0);
       return updated;
     });
   };
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (users.length > 0) safeStorageSet('app_users_v5', users);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [users]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (Object.keys(branchSettings).length > 0) safeStorageSet('app_branch_settings', branchSettings);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [branchSettings]);
+
+  useEffect(() => {
+    const t = setTimeout(() => safeStorageSet('app_timeline', timeline), 500);
+    return () => clearTimeout(t);
+  }, [timeline]);
+
+  useEffect(() => {
+    const t = setTimeout(() => safeStorageSet('app_reviews', reviews), 500);
+    return () => clearTimeout(t);
+  }, [reviews]);
 
   return (
     <DataContext.Provider value={{ 
