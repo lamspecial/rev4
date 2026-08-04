@@ -7,7 +7,7 @@ import { formatDateTime } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
-  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, injectShifts, updateReview, deleteReview } = useData();
+  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, commitShifts, updateReview, deleteReview } = useData();
   const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats'>('timeline');
 
   const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
@@ -22,6 +22,10 @@ export const SystemAdminDashboard: React.FC = () => {
 
   const [reviewsText, setReviewsText] = useState('');
   const [shiftsText, setShiftsText] = useState('');
+  const [pendingShifts, setPendingShifts] = useState<any[]>([]);
+  const [unmatchedShiftNames, setUnmatchedShiftNames] = useState<string[]>([]);
+  const [shiftMappings, setShiftMappings] = useState<Record<string, string>>({});
+  
   const [viewingReviewsMonth, setViewingReviewsMonth] = useState('');
   const [linkingReviewId, setLinkingReviewId] = useState<string | null>(null);
   const [linkingSelection, setLinkingSelection] = useState<string[]>([]);
@@ -39,11 +43,109 @@ export const SystemAdminDashboard: React.FC = () => {
     setReviewsText('');
   };
 
-  const handleInjectShifts = () => {
+  const handleParseShifts = () => {
     if (!shiftsText.trim()) return;
-    injectShifts(selectedBranch, shiftsText);
-    showToast('تم حقن الشفتات بنجاح');
+    const blocks = shiftsText.split(/\n\s*\n/);
+    const parsed: any[] = [];
+    const unmatched = new Set<string>();
+
+    blocks.forEach(block => {
+      const startMatch = block.match(/وقت البداية:\s*([\d:٠-٩]+)(?:\s+([\d-٠-٩]+))?/);
+      const endMatch = block.match(/وقت النهاية:\s*([\d:٠-٩]+)(?:\s+([\d-٠-٩]+))?/);
+      const empMatch = block.match(/الموظفات:\s*(.+)/);
+      
+      if (startMatch && endMatch && empMatch) {
+        const normalize = (s: string) => s.replace(/[٠-٩]/g, (d: any) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
+        const startTime = normalize(startMatch[1].trim());
+        const startDate = startMatch[2] ? normalize(startMatch[2].trim()) : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        const endTime = normalize(endMatch[1].trim());
+        const endDate = endMatch[2] ? normalize(endMatch[2].trim()) : startDate;
+        
+        const nameString = empMatch[1];
+        const names = Array.from(nameString.matchAll(/\(([^)]+)\)/g)).map(m => m[1].trim());
+        if (names.length === 0) {
+          // Fallback if they don't use parentheses
+          names.push(...nameString.split(/[\s,،]+/).filter(n => n.trim().length > 0));
+        }
+        
+        const shiftEmployees: {id: string, name: string}[] = [];
+        names.forEach(name => {
+          const foundEmp = users.find(u => u.name === name || u.id === name || u.name === `الموظفة ${name}`);
+          if (foundEmp) {
+            shiftEmployees.push({ id: foundEmp.id, name: foundEmp.name });
+          } else {
+            shiftEmployees.push({ id: `unmatched_${name}`, name: name });
+            unmatched.add(name);
+          }
+        });
+
+        parsed.push({
+          id: `shift_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          branch: selectedBranch,
+          type: 'shift',
+          title: `شفت محقون`,
+          time: startTime,
+          endTime: endTime,
+          date: startDate,
+          endDate: endDate,
+          employees: shiftEmployees
+        });
+      }
+    });
+
+    setPendingShifts(parsed);
+    setUnmatchedShiftNames(Array.from(unmatched));
+    setShiftMappings({});
+    
+    if (unmatched.size === 0 && parsed.length > 0) {
+      // Auto commit if no unmatched names
+      commitShifts(parsed);
+      setPendingShifts([]);
+      setShiftsText('');
+      showToast('تم حقن الشفتات بنجاح');
+    } else if (parsed.length > 0) {
+      showToast('يوجد أسماء غير مرتبطة، يرجى ربطها أولاً');
+    } else {
+      showToast('لم يتم العثور على شفتات بصيغة صحيحة');
+    }
+  };
+
+  const handleConfirmShifts = () => {
+    let finalShifts = [...pendingShifts];
+    
+    for (const name of unmatchedShiftNames) {
+       const mappedValue = shiftMappings[name];
+       if (!mappedValue) {
+          showToast(`يرجى ربط الموظفة: ${name}`);
+          return;
+       }
+       
+       let realId = mappedValue;
+       if (mappedValue === 'new') {
+          realId = `emp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          addUser({ 
+            id: realId, 
+            name: name, 
+            branch: selectedBranch, 
+            role: 'employee',
+            email: `${realId}@iamspecial.sa`,
+            imageUrl: '/rev4/avatars/avatar_1.png',
+            stats: { positive: 0, negative: 0, complaints: 0, safety: 0 }
+          });
+       }
+       
+       finalShifts = finalShifts.map(s => ({
+         ...s,
+         employees: s.employees?.map((e: any) => e.id === `unmatched_${name}` ? { id: realId, name: mappedValue === 'new' ? name : users.find(u => u.id === realId)?.name || name } : e)
+       }));
+    }
+    
+    commitShifts(finalShifts);
+    setPendingShifts([]);
+    setUnmatchedShiftNames([]);
+    setShiftMappings({});
     setShiftsText('');
+    showToast('تم حقن الشفتات بنجاح');
   };
   
   const handleSaveLinking = (timelineId: string, reviewId: string | undefined) => {
@@ -710,7 +812,7 @@ export const SystemAdminDashboard: React.FC = () => {
                     <label className="block text-sm font-bold text-blue-800">النص البرمجي للشفتات</label>
                     <button 
                       onClick={() => {
-                        const template = `الموظفة: ١\nوقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦\nوقت النهاية: ١١:٥٩ ٠٣-٠٣-٢٠٢٦`;
+                        const template = `وقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦\nوقت النهاية: ١١:٥٩ ٠٣-٠٣-٢٠٢٦\nالموظفات: (رانيا)(نورة)`;
                         navigator.clipboard.writeText(template);
                         showToast('تم نسخ النموذج');
                       }}
@@ -721,15 +823,47 @@ export const SystemAdminDashboard: React.FC = () => {
                   </div>
                   <textarea 
                     value={shiftsText} 
-                    onChange={e => setShiftsText(e.target.value)}
-                    placeholder="الصق الشفتات هنا بالصيغة المطلوبة...&#10;مثال:&#10;الموظفة: ١&#10;وقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦..."
+                    onChange={e => { setShiftsText(e.target.value); setPendingShifts([]); setUnmatchedShiftNames([]); setShiftMappings({}); }}
+                    placeholder="الصق الشفتات هنا بالصيغة المطلوبة...&#10;مثال:&#10;وقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦..."
                     className="w-full h-32 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
                   ></textarea>
                 </div>
-                <button onClick={handleInjectShifts} className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 text-md flex items-center justify-center gap-2 shadow-sm">
-                  <CalendarClock size={18} />
-                  بدء حقن الشفتات
-                </button>
+
+                {unmatchedShiftNames.length > 0 && (
+                  <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h4 className="font-bold text-orange-800 mb-3 text-sm">أسماء غير مرتبطة في الشفتات</h4>
+                    <div className="space-y-3">
+                      {unmatchedShiftNames.map(name => (
+                        <div key={name} className="flex flex-col sm:flex-row items-center gap-2">
+                          <span className="font-bold text-orange-900 min-w-[100px]">{name}</span>
+                          <select 
+                            value={shiftMappings[name] || ''}
+                            onChange={(e) => setShiftMappings(prev => ({...prev, [name]: e.target.value}))}
+                            className="flex-1 p-2 border rounded text-sm bg-white"
+                          >
+                            <option value="" disabled>اختر موظفة للربط...</option>
+                            <option value="new" className="font-bold text-green-600">+ إضافة كموظفة جديدة</option>
+                            {allAvailableEmployees.map(u => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {unmatchedShiftNames.length > 0 ? (
+                  <button onClick={handleConfirmShifts} className="w-full bg-green-600 text-white p-3 rounded-lg font-bold hover:bg-green-700 text-md flex items-center justify-center gap-2 shadow-sm">
+                    <CheckCircle2 size={18} />
+                    تأكيد الحقن
+                  </button>
+                ) : (
+                  <button onClick={handleParseShifts} className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 text-md flex items-center justify-center gap-2 shadow-sm">
+                    <CalendarClock size={18} />
+                    بدء حقن الشفتات
+                  </button>
+                )}
               </div>
 
               <h3 className="font-bold text-xl mb-6 border-b pb-2 flex items-center gap-2 text-gray-800">

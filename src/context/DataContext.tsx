@@ -42,7 +42,7 @@ interface DataContextType {
   deleteTimelineEvent: (id: string) => void;
   reviews: CustomerReview[];
   injectReviews: (branch: string, text: string) => void;
-  injectShifts: (branch: string, text: string) => void;
+  commitShifts: (shifts: TimelineEvent[]) => void;
   updateReview: (id: string, updates: Partial<CustomerReview>) => void;
   deleteReview: (id: string) => void;
 }
@@ -303,55 +303,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const injectShifts = (branch: string, text: string) => {
-    // Expected format:
-    // الموظفة: ١
-    // وقت البداية: ١٦:٠٠ ٠٢-٠٣-٢٠٢٦
-    // وقت النهاية: ١١:٥٩ ٠٣-٠٣-٢٠٢٦
-    const blocks = text.split(/\n\s*\n/);
-    
+  const commitShifts = (shifts: TimelineEvent[]) => {
     setTimeline(prev => {
-      let newTimeline = [...prev];
-      
-      blocks.forEach(block => {
-        const empMatch = block.match(/الموظفة:\s*(.+)/);
-        const startMatch = block.match(/وقت البداية:\s*([\d:٠-٩]+)(?:\s+([\d-٠-٩]+))?/);
-        const endMatch = block.match(/وقت النهاية:\s*([\d:٠-٩]+)(?:\s+([\d-٠-٩]+))?/);
-        
-        if (empMatch && startMatch && endMatch) {
-          const normalize = (s: string) => s.replace(/[٠-٩]/g, (d: any) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
-          const empName = empMatch[1].trim();
-          const startTime = normalize(startMatch[1].trim());
-          const startDate = startMatch[2] ? normalize(startMatch[2].trim()) : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
-          const endTime = normalize(endMatch[1].trim());
-          const endDate = endMatch[2] ? normalize(endMatch[2].trim()) : startDate;
-          
-          // attempt to find employee by ID or Name
-          const foundEmp = users.find(u => u.name === empName || u.id === empName || u.name === `الموظفة ${empName}`);
-          
-          const newShift: TimelineEvent = {
-            id: `shift_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            branch,
-            type: 'shift',
-            title: `شفت محقون: ${empName}`,
-            time: startTime,
-            endTime: endTime,
-            date: startDate,
-            endDate: endDate,
-            employees: foundEmp ? [{ id: foundEmp.id, name: foundEmp.name }] : [{ id: empName, name: `الموظفة ${empName}` }]
-          };
-          
-          newTimeline.push(newShift);
-        }
-      });
-      
-      // Sort by time descending roughly
+      let newTimeline = [...prev, ...shifts];
       newTimeline.sort((a, b) => {
          const aTime = parseInt(a.time.replace(':', '')) || 0;
          const bTime = parseInt(b.time.replace(':', '')) || 0;
          return bTime - aTime;
       });
-      
       setTimeout(() => { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); }, 0);
       return newTimeline;
     });
@@ -414,7 +373,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider value={{ 
       users: enrichedUsers, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, 
       timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
-      reviews, injectReviews, injectShifts, updateReview, deleteReview 
+      reviews, injectReviews, commitShifts, updateReview, deleteReview 
     }}>
       {children}
     </DataContext.Provider>
