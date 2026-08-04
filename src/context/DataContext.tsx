@@ -325,12 +325,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(unifiedUser.id));
       const empTimeline = timeline.filter(t => t.employees?.some(e => e.id === unifiedUser.id));
       
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      const currentMonthReviews = empReviews.filter(r => {
+         const parts = r.date.split('-');
+         if (parts.length >= 3) {
+            return parseInt(parts[1], 10) === currentMonth && parseInt(parts[2], 10) === currentYear;
+         }
+         return false;
+      });
+      
+      const currentMonthTimeline = empTimeline.filter(t => {
+         if (!t.date) return false;
+         const parts = t.date.split('-');
+         if (parts.length >= 3) {
+            return parseInt(parts[1], 10) === currentMonth && parseInt(parts[2], 10) === currentYear;
+         }
+         return false;
+      });
+      
       let positiveScore = 0;
       let negativeScore = 2; // base score for negative
       let complaintsScore = 0;
       let safetyScore = 0;
       
-      empReviews.forEach(r => {
+      currentMonthReviews.forEach(r => {
         const rating = parseInt(r.rating) || 0;
         const shareCount = r.linkedEmployeeIds.length || 1;
         if (rating >= 4) {
@@ -340,7 +361,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      empTimeline.forEach(t => {
+      currentMonthTimeline.forEach(t => {
         if (t.type === 'gap') {
           if (t.title.includes('شكوى')) complaintsScore += 1;
           if (t.title.includes('سلامة')) safetyScore += 1;

@@ -369,7 +369,16 @@ export const SystemAdminDashboard: React.FC = () => {
                     </div>
                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border shadow-sm">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : item.type === 'review' ? 'text-yellow-600' : 'text-green-600'}`}>{item.title}</h4>
+                        <h4 className={`font-bold ${item.type === 'gap' ? 'text-red-600' : item.type === 'review' ? 'text-yellow-600' : 'text-green-600'}`}>
+                          {item.type === 'review' && item.reviewId ? (
+                            (() => {
+                              const rev = reviews.find(r => r.id === item.reviewId);
+                              return rev ? `تقييم من: ${rev.reviewerName} (${rev.rating})` : item.title;
+                            })()
+                          ) : (
+                            item.title
+                          )}
+                        </h4>
                         <div className="flex items-center gap-2">
                           <time className="text-xs font-medium text-gray-500">
                             {item.date ? formatDateTime(item.date, item.time) : item.time}
