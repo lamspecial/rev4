@@ -7,8 +7,8 @@ import { formatDateTime } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
-  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, parseReviewsText, commitReviews, commitShifts, updateReview, deleteReview, undoBatch } = useData();
-  const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats' | 'history'>('timeline');
+  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, parseReviewsText, commitReviews, commitShifts, updateReview, deleteReview, undoBatch, clearData } = useData();
+  const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats' | 'history' | 'shifts' | 'danger'>('timeline');
 
   const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
   const [selectedBranch, setSelectedBranch] = useState(branches[0]);
@@ -1144,40 +1144,186 @@ export const SystemAdminDashboard: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'shifts' && (
+            <div>
+              <div className="flex items-center justify-between mb-6 border-b pb-4">
+                <div className="flex items-center gap-3">
+                  <CalendarClock className="text-indigo-600" size={28} />
+                  <h2 className="text-2xl font-bold text-gray-800">استعراض شفتات الفرع</h2>
+                </div>
+                <select value={selectedTimelineBranch} onChange={e => setSelectedTimelineBranch(e.target.value)} className="p-2 border border-indigo-200 rounded-lg bg-indigo-50 font-bold text-indigo-800">
+                  {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div className="space-y-4">
+                {timeline.filter(t => t.branch === selectedTimelineBranch && t.type === 'shift').map(s => {
+                  const linkedReviewsCount = reviews.filter(r => r.linkedShiftId === s.id || (r.branch === s.branch && r.time >= s.time && (s.endTime ? r.time <= s.endTime : true) && r.linkedShiftId === undefined)).length;
+                  return (
+                    <div key={s.id} className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-4">
+                      <div>
+                        <div className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                          ⏱ شفت ({s.time} - {s.endTime || 'نهاية اليوم'})
+                          {s.date && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{s.date}</span>}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-2 flex flex-wrap gap-1">
+                          {s.employees?.map(e => (
+                            <span key={e.id} className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-bold">{e.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-center font-bold flex flex-col justify-center items-center min-w-[100px]">
+                        <span className="text-2xl">{linkedReviewsCount}</span>
+                        <span className="text-xs">تقييمات مرتبطة</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {timeline.filter(t => t.branch === selectedTimelineBranch && t.type === 'shift').length === 0 && (
+                  <div className="text-center text-gray-500 py-12 border-dashed border-2 rounded-xl flex flex-col items-center gap-3">
+                    <CalendarClock size={48} className="text-gray-300"/>
+                    <p className="font-bold text-lg">لا توجد شفتات مسجلة لهذا الفرع.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'danger' && (
+            <div>
+              <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                <ShieldAlert className="text-red-600" size={28} />
+                <h2 className="text-2xl font-bold text-red-700">منطقة الخطر</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-red-50 p-6 rounded-xl border border-red-200 shadow-sm">
+                  <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                    <Trash2 size={20} /> حذف بيانات فرع بالكامل
+                  </h3>
+                  <p className="text-sm text-red-700 mb-4">هذا الإجراء سيقوم بحذف جميع التقييمات والشفتات والملاحظات الخاصة بالفرع المحدد نهائياً، وسيتم خصم النقاط المرتبطة بها من الموظفات.</p>
+                  
+                  <div className="flex flex-col gap-3">
+                    <select id="dangerBranch" className="p-3 border border-red-300 rounded-lg bg-white">
+                      <option value="all">جميع الفروع (تنبيه!)</option>
+                      {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                    <button onClick={() => {
+                      const sel = (document.getElementById('dangerBranch') as HTMLSelectElement).value;
+                      if (confirm(`هل أنت متأكد من حذف كافة بيانات ${sel === 'all' ? 'جميع الفروع' : sel}؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+                         clearData(sel);
+                         showToast('تم حذف البيانات بنجاح');
+                      }
+                    }} className="bg-red-600 text-white p-3 rounded-lg font-bold hover:bg-red-700">
+                      حذف البيانات
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 p-6 rounded-xl border border-red-200 shadow-sm">
+                  <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+                    <CalendarClock size={20} /> حذف بيانات فترة محددة
+                  </h3>
+                  <p className="text-sm text-red-700 mb-4">اختر النطاق الزمني لحذف كافة البيانات (تقييمات، شفتات) ضمن هذه الفترة فقط للفرع المحدد.</p>
+                  
+                  <div className="flex flex-col gap-3">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-red-800 mb-1">من تاريخ</label>
+                        <input type="date" id="dangerStart" className="w-full p-2 border border-red-300 rounded-lg" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-red-800 mb-1">إلى تاريخ</label>
+                        <input type="date" id="dangerEnd" className="w-full p-2 border border-red-300 rounded-lg" />
+                      </div>
+                    </div>
+                    <select id="dangerPeriodBranch" className="p-2 border border-red-300 rounded-lg bg-white">
+                      <option value="all">جميع الفروع</option>
+                      {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                    <button onClick={() => {
+                      const branch = (document.getElementById('dangerPeriodBranch') as HTMLSelectElement).value;
+                      const start = (document.getElementById('dangerStart') as HTMLInputElement).value;
+                      const end = (document.getElementById('dangerEnd') as HTMLInputElement).value;
+                      if (!start || !end) { showToast('يرجى تحديد فترة صحيحة'); return; }
+                      if (confirm(`هل أنت متأكد من حذف البيانات للفترة ${start} إلى ${end} لـ ${branch === 'all' ? 'جميع الفروع' : branch}؟`)) {
+                         clearData(branch, start, end);
+                         showToast('تم حذف بيانات الفترة بنجاح');
+                      }
+                    }} className="bg-red-600 text-white p-3 rounded-lg font-bold hover:bg-red-700">
+                      حذف بيانات الفترة
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                  <Upload size={20} /> تصدير نسخة احتياطية
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">يمكنك تحميل كافة البيانات (التقييمات، الشفتات، الموظفين، والإعدادات) كملف JSON آمن للاحتفاظ به.</p>
+                <button onClick={() => {
+                   const data = {
+                      users, reviews, timeline, branchSettings
+                   };
+                   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                   const url = URL.createObjectURL(blob);
+                   const a = document.createElement('a');
+                   a.href = url;
+                   a.download = `backup_reviews_system_${new Date().toISOString().split('T')[0]}.json`;
+                   a.click();
+                   URL.revokeObjectURL(url);
+                   showToast('تم تحميل النسخة الاحتياطية بنجاح');
+                }} className="bg-gray-800 text-white px-6 py-3 rounded-lg font-bold hover:bg-black w-full sm:w-auto">
+                  تصدير كافة البيانات (JSON)
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 w-full bg-white/90 backdrop-blur-lg border-t border-gray-200 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-around items-center">
+      <div className="fixed bottom-0 left-0 right-0 w-full bg-white/90 backdrop-blur-lg border-t border-gray-200 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50 px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex overflow-x-auto gap-2 items-center custom-scrollbar">
         <button onClick={() => setActiveTab('timeline')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'timeline' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'timeline' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <Activity size={22} className={activeTab === 'timeline' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الخط الزمني</span>
         </button>
+        <button onClick={() => setActiveTab('shifts')}
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'shifts' ? 'text-indigo-600 bg-indigo-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          <CalendarClock size={22} className={activeTab === 'shifts' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">الشفتات</span>
+        </button>
         <button onClick={() => setActiveTab('branches')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'branches' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'branches' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <Building2 size={22} className={activeTab === 'branches' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الفروع</span>
         </button>
         <button onClick={() => setActiveTab('employees')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'employees' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'employees' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <Users size={22} className={activeTab === 'employees' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الموظفات</span>
         </button>
         <button onClick={() => setActiveTab('notes')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'notes' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'notes' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <MessageSquareWarning size={22} className={activeTab === 'notes' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الملاحظات</span>
         </button>
         <button onClick={() => setActiveTab('stats')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'stats' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'stats' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <BarChart3 size={22} className={activeTab === 'stats' ? 'stroke-[2.5px]' : ''} />
-          <span className="text-[10px] font-bold">الإحصائيات</span>
+          <span className="text-[10px] font-bold">التقييمات</span>
         </button>
         <button onClick={() => setActiveTab('history')}
-          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'history' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'history' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <History size={22} className={activeTab === 'history' ? 'stroke-[2.5px]' : ''} />
-          <span className="text-[10px] font-bold">سجل العمليات</span>
+          <span className="text-[10px] font-bold">السجل</span>
+        </button>
+        <button onClick={() => setActiveTab('danger')}
+          className={`shrink-0 min-w-[70px] flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'danger' ? 'text-red-600 bg-red-50/80 scale-105' : 'text-red-400 hover:text-red-600 hover:bg-red-50'}`}>
+          <ShieldAlert size={22} className={activeTab === 'danger' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">منطقة الخطر</span>
         </button>
       </div>
     </div>

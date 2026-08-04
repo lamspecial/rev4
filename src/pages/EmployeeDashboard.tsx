@@ -5,7 +5,7 @@ import { LogOut, Star, Award, ShieldAlert, AlertTriangle, CalendarClock, Chevron
 
 export const EmployeeDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const { addTimelineEvent } = useData();
+  const { addTimelineEvent, reviews, users, timeline } = useData();
   const [showReviews, setShowReviews] = useState(false);
   const [showShifts, setShowShifts] = useState(false);
 
@@ -107,28 +107,58 @@ export const EmployeeDashboard: React.FC = () => {
               <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">{user.reviewsCount}</span>
             </div>
 
-            <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-              <div className="flex text-yellow-400 mb-2 text-sm">★★★★★</div>
-              <p className="text-gray-700 text-sm">"خدمة ممتازة وسريعة، شكراً لك على حسن التعامل"</p>
-              <p className="text-xs text-gray-400 mt-2">(اكتسبته مع فاطمة ورغد)</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-              <div className="flex text-yellow-400 mb-2 text-sm">★★★★☆</div>
-              <p className="text-gray-700 text-sm">"تجربة رائعة وتجاوب سريع."</p>
-            </div>
-            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-              <div className="flex text-yellow-400 mb-2 text-sm">★★☆☆☆</div>
-              <p className="text-gray-700 text-sm">"الخدمة كانت بطيئة والموظفة لم تساعدني"</p>
-              <p className="text-xs text-red-400 mt-2 font-bold">تقييم سلبي</p>
-            </div>
-            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="text-orange-500" size={16} />
-                <span className="text-orange-700 font-bold text-sm">شكوى عميل</span>
+            {reviews.filter(r => r.linkedEmployeeIds.includes(user.id)).length === 0 && (
+              <p className="text-center text-gray-500 text-sm">لا يوجد تقييمات مرتبطة بك بعد.</p>
+            )}
+
+            {reviews.filter(r => r.linkedEmployeeIds.includes(user.id)).map(r => {
+              const ratingNum = parseInt(r.rating) || 0;
+              const isPositive = ratingNum >= 4;
+              const stars = '★'.repeat(ratingNum) + '☆'.repeat(5 - ratingNum);
+              const otherEmpNames = r.linkedEmployeeIds
+                .filter(id => id !== user.id)
+                .map(id => users.find(u => u.id === id)?.name || id)
+                .join(' و ');
+                
+              let shiftInfo = '';
+              if (r.linkedShiftId) {
+                const s = timeline.find(t => t.id === r.linkedShiftId);
+                if (s) shiftInfo = `في شفت (${s.time} - ${s.endTime || 'نهاية اليوم'})`;
+              }
+
+              return (
+                <div key={r.id} className={`${isPositive ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'} p-4 rounded-xl border`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex text-yellow-400 text-sm">{stars}</div>
+                    <div className="text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded">{r.date} - {r.time}</div>
+                  </div>
+                  <p className="text-gray-700 text-sm">"{r.comment}"</p>
+                  
+                  {(otherEmpNames || shiftInfo) && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      {otherEmpNames && <p className="text-xs text-gray-500 font-bold">(اكتسبته مع {otherEmpNames})</p>}
+                      {shiftInfo && <p className="text-xs text-indigo-500 font-bold">{shiftInfo}</p>}
+                    </div>
+                  )}
+                  {!isPositive && <p className="text-xs text-red-400 mt-2 font-bold">تقييم سلبي</p>}
+                </div>
+              );
+            })}
+            
+            {/* Display Complaints / Safety gaps assigned to this employee */}
+            {timeline.filter(t => t.type === 'gap' && t.title.includes(user.name)).map(t => (
+              <div key={t.id} className={`${t.title.includes('سلامة') ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'} p-4 rounded-xl border`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className={t.title.includes('سلامة') ? 'text-red-500' : 'text-orange-500'} size={16} />
+                  <span className={`${t.title.includes('سلامة') ? 'text-red-700' : 'text-orange-700'} font-bold text-sm`}>{t.title.split(' - ')[0]}</span>
+                </div>
+                <p className="text-gray-700 text-sm">"{t.comment}"</p>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-xs text-gray-500">الوقت: {t.time}</p>
+                  <p className={`text-xs ${t.title.includes('سلامة') ? 'text-red-400' : 'text-orange-400'}`}>مسجلة بواسطة الإدارة</p>
+                </div>
               </div>
-              <p className="text-gray-700 text-sm">"شكوى بخصوص تأخر الخدمة"</p>
-              <p className="text-xs text-orange-400 mt-2">مسجلة بواسطة الإدارة</p>
-            </div>
+            ))}
           </div>
         )}
       </div>

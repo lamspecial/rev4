@@ -12,6 +12,7 @@ export interface CustomerReview {
   time: string;
   branch: string;
   linkedEmployeeIds: string[];
+  linkedShiftId?: string;
   batchId?: string;
 }
 
@@ -49,6 +50,7 @@ interface DataContextType {
   updateReview: (id: string, updates: Partial<CustomerReview>) => void;
   deleteReview: (id: string) => void;
   undoBatch: (batchId: string) => void;
+  clearData: (branch?: string, startDate?: string, endDate?: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -261,6 +263,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (bestShift && bestShift.employees) {
             linkedEmployees = bestShift.employees;
             newReview.linkedEmployeeIds = linkedEmployees.map(e => e.id);
+            newReview.linkedShiftId = bestShift.id;
           }
 
           parsedReviews.push(newReview);
@@ -403,11 +406,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [users, reviews]);
 
+  const clearData = (branch?: string, startDate?: string, endDate?: string) => {
+    // Helper to check if a date string DD-MM-YYYY is between start and end
+    const isBetween = (dateStr: string, start?: string, end?: string) => {
+      if (!start || !end) return true;
+      const dParts = dateStr.split('-');
+      if (dParts.length < 3) return false;
+      const d = new Date(parseInt(dParts[2]), parseInt(dParts[1]) - 1, parseInt(dParts[0]));
+      const s = new Date(start); // assumes YYYY-MM-DD
+      const e = new Date(end); // assumes YYYY-MM-DD
+      return d >= s && d <= e;
+    };
+
+    setTimeline(prev => {
+      const updated = prev.filter(t => {
+        if (branch && branch !== 'all' && t.branch !== branch) return true; // keep if different branch
+        if (startDate && endDate) {
+          if (!t.date || !isBetween(t.date, startDate, endDate)) return true; // keep if not in period
+        }
+        return false; // remove
+      });
+      setTimeout(() => localStorage.setItem('app_timeline', JSON.stringify(updated)), 0);
+      return updated;
+    });
+
+    setReviews(prev => {
+      const updated = prev.filter(r => {
+        if (branch && branch !== 'all' && r.branch !== branch) return true;
+        if (startDate && endDate) {
+          if (!r.date || !isBetween(r.date, startDate, endDate)) return true;
+        }
+        return false;
+      });
+      setTimeout(() => localStorage.setItem('app_reviews', JSON.stringify(updated)), 0);
+      return updated;
+    });
+  };
+
   return (
     <DataContext.Provider value={{ 
       users: enrichedUsers, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, 
       timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
-      reviews, parseReviewsText, commitReviews, commitShifts, updateReview, deleteReview, undoBatch 
+      reviews, parseReviewsText, commitReviews, commitShifts, updateReview, deleteReview, undoBatch, clearData
     }}>
       {children}
     </DataContext.Provider>
