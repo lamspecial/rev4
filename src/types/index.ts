@@ -11,4 +11,13 @@ export interface Employee {
     complaints: number;
     safety: number;
   };
+  monthReviewsCount?: number;
+  manualStats?: {
+    totalReviews?: number;
+    monthReviews?: number;
+    positive?: number;
+    negative?: number;
+    complaints?: number;
+    safety?: number;
+  };
 }

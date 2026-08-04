@@ -187,13 +187,20 @@ export const SystemAdminDashboard: React.FC = () => {
   const [newEmpName, setNewEmpName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const handleUpdateStats = (id: string, type: 'positive' | 'negative', val: number) => {
+  const handleUpdateStats = (id: string, type: 'totalReviews' | 'monthReviews' | 'positive' | 'negative' | 'complaints' | 'safety', val: number) => {
     const emp = users.find(u => u.id === id);
     if (!emp) return;
-    updateUser(id, { 
-      stats: { ...emp.stats, [type]: val },
-      reviewsCount: emp.stats.positive + emp.stats.negative + emp.stats.complaints + (type === 'positive' ? val - emp.stats.positive : val - emp.stats.negative)
-    });
+    
+    const manual = emp.manualStats || {};
+    let oldFinal = 0;
+    if (type === 'totalReviews') oldFinal = emp.reviewsCount || 0;
+    else if (type === 'monthReviews') oldFinal = emp.monthReviewsCount || 0;
+    else oldFinal = emp.stats[type] || 0;
+    
+    const delta = val - oldFinal;
+    const currentManual = manual[type] || 0;
+    
+    updateUser(id, { manualStats: { ...manual, [type]: currentManual + delta } });
     showToast('تم تحديث الإحصائيات');
   };
 
@@ -608,13 +615,17 @@ export const SystemAdminDashboard: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-right border-collapse min-w-[700px]">
                   <thead>
-                    <tr className="bg-gray-100">
-                      <th className="p-3 border">الصورة</th>
-                      <th className="p-3 border">الموظفة</th>
-                      <th className="p-3 border">الفرع (نقل)</th>
-                      <th className="p-3 border">إيجابي</th>
-                      <th className="p-3 border">سلبي</th>
-                      <th className="p-3 border">إجراءات</th>
+                    <tr className="bg-gray-100 text-xs">
+                      <th className="p-2 border">الصورة</th>
+                      <th className="p-2 border">الموظفة</th>
+                      <th className="p-2 border">الفرع (نقل)</th>
+                      <th className="p-2 border" title="إجمالي التقييمات">كلي</th>
+                      <th className="p-2 border" title="تقييمات الشهر">الشهر</th>
+                      <th className="p-2 border" title="نقاط إيجابية">إيجابي</th>
+                      <th className="p-2 border" title="نقاط سلبية">سلبي</th>
+                      <th className="p-2 border" title="الشكاوى">شكاوى</th>
+                      <th className="p-2 border" title="السلامة">سلامة</th>
+                      <th className="p-2 border">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -639,18 +650,38 @@ export const SystemAdminDashboard: React.FC = () => {
                             <option value="موظفة خارجية">خارجية</option>
                           </select>
                         </td>
-                        <td className="p-3 border w-24">
-                          <input type="number" defaultValue={emp.stats.positive}
-                            onBlur={(e) => handleUpdateStats(emp.id, 'positive', parseInt(e.target.value) || 0)}
-                            className="w-full p-1 border rounded text-center focus:bg-white text-green-600 font-bold" />
+                        <td className="p-2 border w-16">
+                          <input type="number" defaultValue={emp.reviewsCount || 0}
+                            onBlur={(e) => handleUpdateStats(emp.id, 'totalReviews', parseInt(e.target.value) || 0)}
+                            className="w-full p-1 border rounded text-center focus:bg-white text-blue-600 font-bold text-xs" />
                         </td>
-                        <td className="p-3 border w-24">
-                          <input type="number" defaultValue={emp.stats.negative}
-                            onBlur={(e) => handleUpdateStats(emp.id, 'negative', parseInt(e.target.value) || 0)}
-                            className="w-full p-1 border rounded text-center focus:bg-white text-red-600 font-bold" />
+                        <td className="p-2 border w-16">
+                          <input type="number" defaultValue={emp.monthReviewsCount || 0}
+                            onBlur={(e) => handleUpdateStats(emp.id, 'monthReviews', parseInt(e.target.value) || 0)}
+                            className="w-full p-1 border rounded text-center focus:bg-white text-blue-600 font-bold text-xs" />
                         </td>
-                        <td className="p-3 border text-center w-24">
-                          <button onClick={() => handleRemoveEmployee(emp.id)} className="text-sm text-red-600 hover:underline font-bold">إزالة</button>
+                        <td className="p-2 border w-16">
+                          <input type="number" step="0.25" defaultValue={emp.stats.positive}
+                            onBlur={(e) => handleUpdateStats(emp.id, 'positive', parseFloat(e.target.value) || 0)}
+                            className="w-full p-1 border rounded text-center focus:bg-white text-green-600 font-bold text-xs" />
+                        </td>
+                        <td className="p-2 border w-16">
+                          <input type="number" step="0.5" defaultValue={emp.stats.negative}
+                            onBlur={(e) => handleUpdateStats(emp.id, 'negative', parseFloat(e.target.value) || 0)}
+                            className="w-full p-1 border rounded text-center focus:bg-white text-red-600 font-bold text-xs" />
+                        </td>
+                        <td className="p-2 border w-16">
+                          <input type="number" defaultValue={emp.stats.complaints}
+                            onBlur={(e) => handleUpdateStats(emp.id, 'complaints', parseInt(e.target.value) || 0)}
+                            className="w-full p-1 border rounded text-center focus:bg-white text-orange-600 font-bold text-xs" />
+                        </td>
+                        <td className="p-2 border w-16">
+                          <input type="number" defaultValue={emp.stats.safety}
+                            onBlur={(e) => handleUpdateStats(emp.id, 'safety', parseInt(e.target.value) || 0)}
+                            className="w-full p-1 border rounded text-center focus:bg-white text-orange-600 font-bold text-xs" />
+                        </td>
+                        <td className="p-2 border text-center w-20">
+                          <button onClick={() => handleRemoveEmployee(emp.id)} className="text-xs text-red-600 hover:underline font-bold">إزالة</button>
                         </td>
                       </tr>
                     ))}

@@ -368,6 +368,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
+      const manual = unifiedUser.manualStats || {};
+      positiveScore += (manual.positive || 0);
+      negativeScore += (manual.negative || 0);
+      complaintsScore += (manual.complaints || 0);
+      safetyScore += (manual.safety || 0);
+
       if (positiveScore > 5) positiveScore = 5;
       if (negativeScore < 0) negativeScore = 0;
       
@@ -375,11 +381,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (qualityScore < 0) qualityScore = 0;
       
       const calculatedPoints = positiveScore + negativeScore + qualityScore;
+      
+      const totalReviewsCount = empReviews.length + (manual.totalReviews || 0);
+      const monthReviewsCount = currentMonthReviews.length + (manual.monthReviews || 0);
+
       // Return updated user
       return {
         ...unifiedUser,
         points: calculatedPoints,
-        reviewsCount: empReviews.length,
+        reviewsCount: totalReviewsCount,
+        monthReviewsCount,
         stats: {
           positive: positiveScore,
           negative: negativeScore,
