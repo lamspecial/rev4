@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2, Edit, Undo2, History } from 'lucide-react';
 import employeeImg from '../assets/employee.png';
-import { formatDateTime } from '../lib/formatDate';
+import { formatDateTime, toEnglishNumerals } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
@@ -968,11 +968,11 @@ export const SystemAdminDashboard: React.FC = () => {
                     <div className="max-h-60 overflow-y-auto space-y-2 mb-4 pr-2 custom-scrollbar">
                       {pendingShifts.map((s, idx) => {
                         // Estimate how many reviews this shift will capture (unlinked reviews in this time window)
-                        const sTime = parseInt(s.time.replace(':', ''));
+                        const sTime = parseInt(toEnglishNumerals(s.time).replace(':', ''));
                         const eTime = parseInt(s.endTime.replace(':', ''));
                         let reviewsCount = 0;
                         reviews.filter(r => r.branch === selectedBranch && r.linkedEmployeeIds.length === 0).forEach(r => {
-                          const rTime = parseInt(r.time.replace(':', ''));
+                          const rTime = parseInt(toEnglishNumerals(r.time).replace(':', ''));
                           if (eTime < sTime) { // Cross midnight
                             if (rTime >= sTime || rTime <= eTime) reviewsCount++;
                           } else {

@@ -7,7 +7,7 @@ import 'swiper/css';
 import 'swiper/css/effect-creative';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { useData } from '../context/DataContext';
-import { formatDateTime, isWithinLastDays } from '../lib/formatDate';
+import { formatDateTime, isWithinLastDays , toEnglishNumerals} from '../lib/formatDate';
 import type { UserAccount } from '../lib/mockData';
 
 type SlideData = 
@@ -515,7 +515,7 @@ export const Leaderboard: React.FC = () => {
                     if (r.branch !== branchName) return false;
                     const dateParts = r.date.split('-');
                     if (dateParts.length === 3) {
-                      const d = new Date(parseInt(dateParts[2]), parseInt(dateParts[1]) - 1, parseInt(dateParts[0]));
+                      const d = new Date(parseInt(toEnglishNumerals(dateParts[2])), parseInt(toEnglishNumerals(dateParts[1])) - 1, parseInt(toEnglishNumerals(dateParts[0])));
                       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
                     }
                     return false;

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockUsers } from '../lib/mockData';
 import type { UserAccount } from '../lib/mockData';
 import employeeImg from '../assets/employee.png';
+import { toEnglishNumerals } from '../lib/formatDate';
 
 export interface CustomerReview {
   id: string;
@@ -226,14 +227,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
 
           let linkedEmployees: {id: string, name: string}[] = [];
-          const rTime = parseInt(newReview.time.replace(':', ''));
+          const rTime = parseInt(toEnglishNumerals(newReview.time).replace(':', ''));
           const possibleShifts = timeline.filter(t => t.branch === branch && t.type === 'shift' && t.employees && t.employees.length > 0);
           
           let bestShift: TimelineEvent | null = null;
           for (const s of possibleShifts) {
-            const sTime = parseInt(s.time.replace(':', ''));
+            const sTime = parseInt(toEnglishNumerals(s.time).replace(':', ''));
             const eTimeStr = s.endTime || '23:59';
-            const eTime = parseInt(eTimeStr.replace(':', ''));
+            const eTime = parseInt(toEnglishNumerals(eTimeStr).replace(':', ''));
             
             if (eTime < sTime) {
               if (rTime >= sTime || rTime <= eTime) { bestShift = s; break; }
@@ -245,7 +246,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!bestShift) {
             let maxTime = -1;
             for (const s of possibleShifts) {
-              const sTime = parseInt(s.time.replace(':', ''));
+              const sTime = parseInt(toEnglishNumerals(s.time).replace(':', ''));
               if (sTime <= rTime && sTime > maxTime) {
                 maxTime = sTime;
                 bestShift = s;
@@ -289,8 +290,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (newTimelineEvents.length > 0) {
       setTimeline(prevT => {
         const updatedT = [...newTimelineEvents, ...prevT].sort((a, b) => {
-           const aTime = parseInt(a.time.replace(':', '')) || 0;
-           const bTime = parseInt(b.time.replace(':', '')) || 0;
+           const aTime = parseInt(toEnglishNumerals(a.time).replace(':', '')) || 0;
+           const bTime = parseInt(toEnglishNumerals(b.time).replace(':', '')) || 0;
            return bTime - aTime;
         });
         return updatedT;
@@ -303,8 +304,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let finalShifts = batchId ? shifts.map(s => ({ ...s, batchId })) : shifts;
       let newTimeline = [...prev, ...finalShifts];
       newTimeline.sort((a, b) => {
-         const aTime = parseInt(a.time.replace(':', '')) || 0;
-         const bTime = parseInt(b.time.replace(':', '')) || 0;
+         const aTime = parseInt(toEnglishNumerals(a.time).replace(':', '')) || 0;
+         const bTime = parseInt(toEnglishNumerals(b.time).replace(':', '')) || 0;
          return bTime - aTime;
       });
       return newTimeline;
@@ -327,7 +328,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentMonthReviews = empReviews.filter(r => {
          const parts = r.date.split('-');
          if (parts.length >= 3) {
-            return parseInt(parts[1], 10) === currentMonth && parseInt(parts[2], 10) === currentYear;
+            return parseInt(toEnglishNumerals(parts[1]), 10) === currentMonth && parseInt(toEnglishNumerals(parts[2]), 10) === currentYear;
          }
          return false;
       });
@@ -336,7 +337,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
          if (!t.date) return false;
          const parts = t.date.split('-');
          if (parts.length >= 3) {
-            return parseInt(parts[1], 10) === currentMonth && parseInt(parts[2], 10) === currentYear;
+            return parseInt(toEnglishNumerals(parts[1]), 10) === currentMonth && parseInt(toEnglishNumerals(parts[2]), 10) === currentYear;
          }
          return false;
       });
@@ -347,7 +348,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let safetyScore = 0;
       
       currentMonthReviews.forEach(r => {
-        const rating = parseInt(r.rating) || 0;
+        const rating = parseInt(toEnglishNumerals(r.rating)) || 0;
         const shareCount = r.linkedEmployeeIds.length || 1;
         if (rating >= 4) {
           positiveScore += (0.25 / shareCount);
@@ -402,7 +403,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!start || !end) return true;
       const dParts = dateStr.split('-');
       if (dParts.length < 3) return false;
-      const d = new Date(parseInt(dParts[2]), parseInt(dParts[1]) - 1, parseInt(dParts[0]));
+      const d = new Date(parseInt(toEnglishNumerals(dParts[2])), parseInt(toEnglishNumerals(dParts[1])) - 1, parseInt(toEnglishNumerals(dParts[0])));
       const s = new Date(start); // assumes YYYY-MM-DD
       const e = new Date(end); // assumes YYYY-MM-DD
       return d >= s && d <= e;
