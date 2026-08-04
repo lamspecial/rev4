@@ -152,9 +152,16 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
               {/* Body */}
               <div className="p-4 sm:p-6 bg-gray-50 h-[50vh] overflow-y-auto">
                 {activeTab === 'reviews' ? (
-                  <div className="space-y-3">
-                    {employeeReviews.map(r => (
+                  <div className="space-y-4 pt-2 pb-2">
+                    {employeeReviews.map(r => {
+                      const linkedNames = r.linkedEmployeeIds.map((id: string) => users.find((u: any) => u.id === id)?.name || id).join('، ');
+                      return (
                       <div key={r.id} className="bg-white p-4 rounded-xl border shadow-sm relative">
+                        {linkedNames && (
+                          <div className="absolute -top-2.5 right-4 bg-white border border-gray-100 px-2 py-0.5 rounded text-[10px] text-gray-400 font-medium shadow-sm z-10">
+                            {linkedNames}
+                          </div>
+                        )}
                         <div className="flex justify-between items-start">
                           <div className="flex text-yellow-400 mb-2">★★★★★</div>
                           <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">
@@ -166,7 +173,8 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                           <p className="text-xs text-blue-600 mt-2 font-bold">الفرع: {r.branch}</p>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                     {employeeReviews.length === 0 && (
                       <p className="text-center text-gray-500 py-10">لا توجد تقييمات مكتسبة بعد.</p>
                     )}
