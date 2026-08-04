@@ -106,16 +106,16 @@ export const SystemAdminDashboard: React.FC = () => {
     const unmatched = new Set<string>();
 
     blocks.forEach(block => {
-      const startMatch = block.match(/وقت البداية:\s*([\d:٠-٩]+)(?:\s+([\d-٠-٩]+))?/);
-      const endMatch = block.match(/وقت النهاية:\s*([\d:٠-٩]+)(?:\s+([\d-٠-٩]+))?/);
+      const startMatch = block.match(/وقت البداية:\s*([^\s]+)(?:\s+([^\s]+))?/);
+      const endMatch = block.match(/وقت النهاية:\s*([^\s]+)(?:\s+([^\s]+))?/);
       const empMatch = block.match(/الموظفات:\s*(.+)/);
       
       if (startMatch && endMatch && empMatch) {
         const normalize = (s: string) => s.replace(/[٠-٩]/g, (d: any) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
         const startTime = normalize(startMatch[1].trim());
-        const startDate = startMatch[2] ? normalize(startMatch[2].trim()) : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        const startDate = startMatch[2] ? normalize(startMatch[2].trim()).replace(/\//g, '-') : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         const endTime = normalize(endMatch[1].trim());
-        const endDate = endMatch[2] ? normalize(endMatch[2].trim()) : startDate;
+        const endDate = endMatch[2] ? normalize(endMatch[2].trim()).replace(/\//g, '-') : startDate;
         
         const nameString = empMatch[1];
         const names = Array.from(nameString.matchAll(/\(([^)]+)\)/g)).map(m => m[1].trim());
