@@ -106,14 +106,19 @@ export const SystemAdminDashboard: React.FC = () => {
     const unmatched = new Set<string>();
 
     blocks.forEach(block => {
-      const startMatch = block.match(/وقت البداية:\s*([^\s]+)(?:\s+([^\s]+))?/);
-      const endMatch = block.match(/وقت النهاية:\s*([^\s]+)(?:\s+([^\s]+))?/);
+      const startMatch = block.match(/وقت البداية:[ \t]*([^\s]+)(?:[ \t]+([^\s]+))?/);
+      const endMatch = block.match(/وقت النهاية:[ \t]*([^\s]+)(?:[ \t]+([^\s]+))?/);
+      const dateMatch = block.match(/التاريخ:[ \t]*([^\s]+)/);
       const empMatch = block.match(/الموظفات:\s*(.+)/);
       
       if (startMatch && endMatch && empMatch) {
         const normalize = (s: string) => s.replace(/[٠-٩]/g, (d: any) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
         const startTime = normalize(startMatch[1].trim());
-        const startDate = startMatch[2] ? normalize(startMatch[2].trim()).replace(/\//g, '-') : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        let extractedDate = startMatch[2] ? startMatch[2].trim() : null;
+        if (!extractedDate && dateMatch) {
+          extractedDate = dateMatch[1].trim();
+        }
+        const startDate = extractedDate ? normalize(extractedDate).replace(/\//g, '-') : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         const endTime = normalize(endMatch[1].trim());
         const endDate = endMatch[2] ? normalize(endMatch[2].trim()).replace(/\//g, '-') : startDate;
         
