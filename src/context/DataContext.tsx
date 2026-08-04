@@ -322,8 +322,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const unifiedUser = { ...user, imageUrl: employeeImg };
       if (unifiedUser.role !== 'employee') return unifiedUser;
       
-      const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(unifiedUser.id));
-      const empTimeline = timeline.filter(t => t.employees?.some(e => e.id === unifiedUser.id));
+      const empReviews = reviews.filter(r => r.linkedEmployeeIds.includes(unifiedUser.id) || r.linkedEmployeeIds.includes(unifiedUser.name));
+      const empTimeline = timeline.filter(t => t.employees?.some(e => e.id === unifiedUser.id || e.name === unifiedUser.name));
       
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;

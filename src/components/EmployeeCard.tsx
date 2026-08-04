@@ -17,9 +17,9 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'shifts' | 'points'>('points');
   const { reviews, users, timeline } = useData();
-  const employeeReviews = reviews.filter(r => r.linkedEmployeeIds.includes(employee.id));
+  const employeeReviews = reviews.filter(r => r.linkedEmployeeIds.includes(employee.id) || r.linkedEmployeeIds.includes(employee.name));
   const [selectedShift, setSelectedShift] = useState<TimelineEvent | null>(null);
-  const employeeShifts = timeline.filter(t => t.type === 'shift' && t.employees?.some(e => e.id === employee.id));
+  const employeeShifts = timeline.filter(t => t.type === 'shift' && t.employees?.some(e => e.id === employee.id || e.name === employee.name));
 
   let favoritePartnerName = '';
   if (employeeReviews.length > 0) {
