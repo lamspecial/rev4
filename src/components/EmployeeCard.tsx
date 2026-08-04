@@ -54,7 +54,19 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
     }
   }, [showModal]);
 
-  const totalHours = 22; // Mock: sum of shift hours
+  let totalHours = 0;
+  employeeShifts.forEach(s => {
+    if (s.time && s.endTime) {
+      const [sh, sm] = s.time.split(':').map(Number);
+      const [eh, em] = s.endTime.split(':').map(Number);
+      let diff = (eh + em/60) - (sh + sm/60);
+      if (diff < 0) diff += 24;
+      totalHours += diff;
+    } else {
+      totalHours += 8;
+    }
+  });
+  totalHours = Math.round(totalHours);
 
   return (
     <>
@@ -119,21 +131,21 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                   className={`flex-1 p-3 font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'reviews' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
                 >
                   <Star size={18} />
-                  سجل التقييمات
+                  تقييماتي
                 </button>
                 <button 
                   onClick={() => setActiveTab('shifts')}
                   className={`flex-1 p-3 font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'shifts' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
                 >
                   <CalendarClock size={18} />
-                  سجل الشفتات
+                  أيامي
                 </button>
                 <button 
                   onClick={() => setActiveTab('points')}
                   className={`flex-1 p-3 font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'points' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
                 >
                   <Award size={18} />
-                  النقاط
+                  نقاطي
                 </button>
               </div>
 
@@ -162,15 +174,9 @@ export const EmployeeCard: React.FC<Props> = ({ employee, children, onModalOpen,
                 ) : activeTab === 'shifts' ? (
                   <div className="space-y-3">
                     {/* Total Hours Badge */}
-                    <div className="bg-blue-600 text-white p-4 rounded-xl flex items-center justify-between shadow-md mb-4">
-                      <div className="flex items-center gap-3">
-                        <Clock size={24} />
-                        <div>
-                          <p className="font-bold text-lg">إجمالي ساعات العمل</p>
-                          <p className="text-blue-100 text-sm">في صناعة تجربة العملاء</p>
-                        </div>
-                      </div>
-                      <p className="text-3xl font-extrabold">{totalHours}</p>
+                    <div className="bg-transparent border border-gray-200 text-gray-700 p-2 rounded-xl flex items-center justify-center gap-2 shadow-sm mb-4">
+                      <Clock size={18} className="text-blue-600" />
+                      <p className="font-bold text-sm">{totalHours} ساعات في صناعة تجربة العميل</p>
                     </div>
 
                     {employeeShifts.length > 0 ? employeeShifts.map((shift, idx) => {
