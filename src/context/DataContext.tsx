@@ -55,6 +55,15 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+const safeStorageSet = (key: string, value: any) => {
+  try {
+    const stringified = typeof value === 'string' ? value : JSON.stringify(value);
+    localStorage.setItem(key, stringified);
+  } catch (e) {
+    console.error('Storage quota exceeded or error:', e);
+  }
+};
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [branchSettings, setBranchSettings] = useState<Record<string, { start: string; end: string; googleApi?: string; nextDayTime?: string }>>({});
@@ -68,7 +77,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUsers(JSON.parse(savedUsers));
     } else {
       setUsers(mockUsers);
-      localStorage.setItem('app_users_v5', JSON.stringify(mockUsers));
+      safeStorageSet('app_users_v5', JSON.stringify(mockUsers));
     }
 
     const savedSettings = localStorage.getItem('app_branch_settings');
@@ -81,7 +90,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         defaultSettings[b] = { start: '16:00', end: '00:00', googleApi: '' };
       });
       setBranchSettings(defaultSettings);
-      localStorage.setItem('app_branch_settings', JSON.stringify(defaultSettings));
+      safeStorageSet('app_branch_settings', JSON.stringify(defaultSettings));
     }
 
     const savedTimeline = localStorage.getItem('app_timeline');
@@ -94,14 +103,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         { id: '2', branch: 'ذافيو', type: 'shift', title: 'تم بدء شفت مسائي', time: '16:00' },
       ];
       setTimeline(initialTimeline);
-      localStorage.setItem('app_timeline', JSON.stringify(initialTimeline));
+      safeStorageSet('app_timeline', initialTimeline);
     }
 
     const savedReviews = localStorage.getItem('app_reviews');
     if (savedReviews) {
       setReviews(JSON.parse(savedReviews));
     } else {
-      localStorage.setItem('app_reviews', JSON.stringify([]));
+      safeStorageSet('app_reviews', []);
     }
   }, []);
 
@@ -116,7 +125,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTimeout(() => {
       try {
         if (newUsers.length > 0) {
-          localStorage.setItem('app_users_v5', JSON.stringify(newUsers));
+          safeStorageSet('app_users_v5', JSON.stringify(newUsers));
         }
       } catch (e) {
         console.error('LocalStorage Quota Exceeded for users', e);
@@ -130,7 +139,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newSettings = { ...branchSettings, [branch]: { start, end, googleApi: googleApi !== undefined ? googleApi : current.googleApi, nextDayTime: nextDayTime !== undefined ? nextDayTime : current.nextDayTime } };
     setBranchSettings(newSettings);
     try {
-      localStorage.setItem('app_branch_settings', JSON.stringify(newSettings));
+      safeStorageSet('app_branch_settings', JSON.stringify(newSettings));
     } catch (e) { console.error(e); }
   };
 
@@ -138,7 +147,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newTimeline = timeline.map(t => t.id === id ? { ...t, comment } : t);
     setTimeline(newTimeline);
     try {
-      localStorage.setItem('app_timeline', JSON.stringify(newTimeline));
+      safeStorageSet('app_timeline', JSON.stringify(newTimeline));
     } catch (e) { console.error(e); }
   };
 
@@ -146,30 +155,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newTimeline = [{ ...event, id: Date.now().toString() }, ...timeline];
     setTimeline(newTimeline);
     try {
-      localStorage.setItem('app_timeline', JSON.stringify(newTimeline));
+      safeStorageSet('app_timeline', JSON.stringify(newTimeline));
     } catch (e) { console.error(e); }
   };
 
   const updateTimelineEvent = (id: string, updates: Partial<TimelineEvent>) => {
     const newTimeline = timeline.map(t => t.id === id ? { ...t, ...updates } : t);
     setTimeline(newTimeline);
-    try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    try { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
   };
 
   const deleteTimelineEvent = (id: string) => {
     const newTimeline = timeline.filter(t => t.id !== id);
     setTimeline(newTimeline);
-    try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    try { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
   };
 
   const undoBatch = (batchId: string) => {
     const newTimeline = timeline.filter(t => t.batchId !== batchId);
     setTimeline(newTimeline);
-    try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    try { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
     
     const newReviews = reviews.filter(r => r.batchId !== batchId);
     setReviews(newReviews);
-    try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+    try { safeStorageSet('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
   };
 
   const addUser = (newUser: Omit<UserAccount, 'points' | 'reviewsCount'>) => {
@@ -177,7 +186,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newUsers = [...users, userWithDefaults];
     setUsers(newUsers);
     try {
-      localStorage.setItem('app_users_v5', JSON.stringify(newUsers));
+      safeStorageSet('app_users_v5', JSON.stringify(newUsers));
     } catch (e) { console.error(e); }
   };
 
@@ -185,21 +194,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newUsers = users.filter(u => u.id !== id);
     setUsers(newUsers);
     try {
-      localStorage.setItem('app_users_v5', JSON.stringify(newUsers));
+      safeStorageSet('app_users_v5', JSON.stringify(newUsers));
     } catch (e) { console.error(e); }
   };
 
   const updateReview = (id: string, updates: Partial<CustomerReview>) => {
     const newReviews = reviews.map(r => r.id === id ? { ...r, ...updates } : r);
     setReviews(newReviews);
-    try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+    try { safeStorageSet('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
   };
 
   const deleteReview = (id: string) => {
     const newReviews = reviews.filter(r => r.id !== id);
     setReviews(newReviews);
     deleteTimelineEvent(id);
-    try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+    try { safeStorageSet('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
   };
 
   const parseReviewsText = (branch: string, text: string, batchId?: string) => {
@@ -290,7 +299,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const commitReviews = (newReviews: CustomerReview[], newTimelineEvents: TimelineEvent[]) => {
     setReviews(prev => {
       const updated = [...newReviews, ...prev];
-      setTimeout(() => { localStorage.setItem('app_reviews', JSON.stringify(updated)); }, 0);
+      setTimeout(() => { safeStorageSet('app_reviews', JSON.stringify(updated)); }, 0);
       return updated;
     });
 
@@ -301,7 +310,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
            const bTime = parseInt(b.time.replace(':', '')) || 0;
            return bTime - aTime;
         });
-        setTimeout(() => { localStorage.setItem('app_timeline', JSON.stringify(updatedT)); }, 0);
+        setTimeout(() => { safeStorageSet('app_timeline', JSON.stringify(updatedT)); }, 0);
         return updatedT;
       });
     }
@@ -316,7 +325,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
          const bTime = parseInt(b.time.replace(':', '')) || 0;
          return bTime - aTime;
       });
-      setTimeout(() => { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); }, 0);
+      setTimeout(() => { safeStorageSet('app_timeline', JSON.stringify(newTimeline)); }, 0);
       return newTimeline;
     });
   };
@@ -404,7 +413,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       };
     });
-  }, [users, reviews]);
+  }, [users, reviews, timeline]);
 
   const clearData = (branch?: string, startDate?: string, endDate?: string) => {
     // Helper to check if a date string DD-MM-YYYY is between start and end
@@ -426,7 +435,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return false; // remove
       });
-      setTimeout(() => localStorage.setItem('app_timeline', JSON.stringify(updated)), 0);
+      setTimeout(() => safeStorageSet('app_timeline', JSON.stringify(updated)), 0);
       return updated;
     });
 
@@ -438,7 +447,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return false;
       });
-      setTimeout(() => localStorage.setItem('app_reviews', JSON.stringify(updated)), 0);
+      setTimeout(() => safeStorageSet('app_reviews', JSON.stringify(updated)), 0);
       return updated;
     });
   };
