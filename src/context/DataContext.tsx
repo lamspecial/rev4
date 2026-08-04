@@ -12,6 +12,7 @@ export interface CustomerReview {
   time: string;
   branch: string;
   linkedEmployeeIds: string[];
+  batchId?: string;
 }
 
 export interface TimelineEvent {
@@ -26,6 +27,7 @@ export interface TimelineEvent {
   comment?: string;
   employees?: { id: string, name: string }[];
   reviewId?: string;
+  batchId?: string;
 }
 
 interface DataContextType {
@@ -41,10 +43,12 @@ interface DataContextType {
   updateTimelineEvent: (id: string, updates: Partial<TimelineEvent>) => void;
   deleteTimelineEvent: (id: string) => void;
   reviews: CustomerReview[];
-  injectReviews: (branch: string, text: string) => void;
-  commitShifts: (shifts: TimelineEvent[]) => void;
+  parseReviewsText: (branch: string, text: string, batchId?: string) => { reviews: CustomerReview[], timelineEvents: TimelineEvent[] };
+  commitReviews: (newReviews: CustomerReview[], newTimelineEvents: TimelineEvent[]) => void;
+  commitShifts: (shifts: TimelineEvent[], batchId?: string) => void;
   updateReview: (id: string, updates: Partial<CustomerReview>) => void;
   deleteReview: (id: string) => void;
+  undoBatch: (batchId: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -156,6 +160,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
   };
 
+  const undoBatch = (batchId: string) => {
+    const newTimeline = timeline.filter(t => t.batchId !== batchId);
+    setTimeline(newTimeline);
+    try { localStorage.setItem('app_timeline', JSON.stringify(newTimeline)); } catch (e) { console.error(e); }
+    
+    const newReviews = reviews.filter(r => r.batchId !== batchId);
+    setReviews(newReviews);
+    try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
+  };
+
   const addUser = (newUser: Omit<UserAccount, 'points' | 'reviewsCount'>) => {
     const userWithDefaults: UserAccount = { ...newUser, points: 0, reviewsCount: 0 };
     const newUsers = [...users, userWithDefaults];
@@ -186,126 +200,114 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); } catch (e) { console.error(e); }
   };
 
-  const injectReviews = (branch: string, text: string) => {
-    // Expected format:
-    // معرف التقييم: ...
-    // اسم المقيم: ...
-    // التقييم: 5 نجوم
-    // التعليق: ...
-    // التاريخ: 06-07-2026
-    // الوقت: 14:23
+  const parseReviewsText = (branch: string, text: string, batchId?: string) => {
     const reviewBlocks = text.split(/\n\s*\n/);
-    
-    setReviews(prev => {
-      let newReviews = [...prev];
-      let newTimelineEvents: TimelineEvent[] = [];
+    let parsedReviews: CustomerReview[] = [];
+    let newTimelineEvents: TimelineEvent[] = [];
 
-      reviewBlocks.forEach(block => {
-        const idMatch = block.match(/معرف التقييم:\s*(.+)/);
-        const nameMatch = block.match(/اسم المقيم:\s*(.+)/);
-        const ratingMatch = block.match(/التقييم:\s*(.+)/);
-        const commentMatch = block.match(/التعليق:\s*(.+)/);
-        const dateMatch = block.match(/التاريخ:\s*(.+)/);
-        const timeMatch = block.match(/الوقت:\s*(.+)/);
+    reviewBlocks.forEach(block => {
+      const idMatch = block.match(/معرف التقييم:\s*(.+)/);
+      const nameMatch = block.match(/اسم المقيم:\s*(.+)/);
+      const ratingMatch = block.match(/التقييم:\s*(.+)/);
+      const commentMatch = block.match(/التعليق:\s*(.+)/);
+      const dateMatch = block.match(/التاريخ:\s*(.+)/);
+      const timeMatch = block.match(/الوقت:\s*(.+)/);
 
-        if (idMatch && nameMatch && ratingMatch && dateMatch && timeMatch) {
-          const id = idMatch[1].trim();
+      if (idMatch && nameMatch && ratingMatch && dateMatch && timeMatch) {
+        const id = idMatch[1].trim();
+        
+        // Check for duplicate in existing and newly parsed
+        if (!reviews.find(r => r.id === id) && !parsedReviews.find(r => r.id === id)) {
+          const newReview: CustomerReview = {
+            id,
+            reviewerName: nameMatch[1].trim(),
+            rating: ratingMatch[1].trim(),
+            comment: commentMatch ? commentMatch[1].trim() : '',
+            date: dateMatch[1].trim(),
+            time: timeMatch[1].trim(),
+            branch,
+            linkedEmployeeIds: [],
+            batchId
+          };
+
+          let linkedEmployees: {id: string, name: string}[] = [];
+          const rTime = parseInt(newReview.time.replace(':', ''));
+          const possibleShifts = timeline.filter(t => t.branch === branch && t.type === 'shift' && t.employees && t.employees.length > 0);
           
-          // Check for duplicate
-          if (!newReviews.find(r => r.id === id)) {
-            const newReview: CustomerReview = {
-              id,
-              reviewerName: nameMatch[1].trim(),
-              rating: ratingMatch[1].trim(),
-              comment: commentMatch ? commentMatch[1].trim() : '',
-              date: dateMatch[1].trim(),
-              time: timeMatch[1].trim(),
-              branch,
-              linkedEmployeeIds: []
-            };
-
-            // Attempt auto-linking based on timeline shifts
-            // Find the latest shift in the branch before this review time on the same date (or assume today)
-            // Simplified logic: just find any shift before it
-            let linkedEmployees: {id: string, name: string}[] = [];
-            const rTime = parseInt(newReview.time.replace(':', ''));
-            const possibleShifts = timeline.filter(t => t.branch === branch && t.type === 'shift' && t.employees && t.employees.length > 0);
+          let bestShift: TimelineEvent | null = null;
+          for (const s of possibleShifts) {
+            const sTime = parseInt(s.time.replace(':', ''));
+            const eTimeStr = s.endTime || '23:59';
+            const eTime = parseInt(eTimeStr.replace(':', ''));
             
-            // Try to match strictly within shift bounds (supporting midnight crossing)
-            let bestShift: TimelineEvent | null = null;
+            if (eTime < sTime) {
+              if (rTime >= sTime || rTime <= eTime) { bestShift = s; break; }
+            } else {
+              if (rTime >= sTime && rTime <= eTime) { bestShift = s; break; }
+            }
+          }
+
+          if (!bestShift) {
+            let maxTime = -1;
             for (const s of possibleShifts) {
               const sTime = parseInt(s.time.replace(':', ''));
-              const eTimeStr = s.endTime || '23:59';
-              const eTime = parseInt(eTimeStr.replace(':', ''));
-              
-              if (eTime < sTime) { // Crosses midnight
-                if (rTime >= sTime || rTime <= eTime) {
-                  bestShift = s; break;
-                }
-              } else { // Same day
-                if (rTime >= sTime && rTime <= eTime) {
-                  bestShift = s; break;
-                }
+              if (sTime <= rTime && sTime > maxTime) {
+                maxTime = sTime;
+                bestShift = s;
               }
             }
-
-            // Fallback: Just take the latest shift before this time
-            if (!bestShift) {
-              let maxTime = -1;
-              for (const s of possibleShifts) {
-                const sTime = parseInt(s.time.replace(':', ''));
-                if (sTime <= rTime && sTime > maxTime) {
-                  maxTime = sTime;
-                  bestShift = s;
-                }
-              }
-            }
-
-            if (bestShift && bestShift.employees) {
-              linkedEmployees = bestShift.employees;
-              newReview.linkedEmployeeIds = linkedEmployees.map(e => e.id);
-            }
-
-            newReviews.push(newReview);
-
-            // Add to timeline
-            newTimelineEvents.push({
-              id: id, // Use the review id as timeline id
-              branch,
-              type: 'review',
-              title: `تقييم جديد (${newReview.rating})`,
-              time: newReview.time,
-              date: newReview.date,
-              comment: newReview.comment,
-              employees: linkedEmployees,
-              reviewId: id
-            });
           }
-        }
-      });
 
-      // Update Timeline
-      if (newTimelineEvents.length > 0) {
-        setTimeline(prevT => {
-          const updatedT = [...newTimelineEvents, ...prevT].sort((a, b) => {
-             // sort by time descending roughly
-             const aTime = parseInt(a.time.replace(':', '')) || 0;
-             const bTime = parseInt(b.time.replace(':', '')) || 0;
-             return bTime - aTime;
+          if (bestShift && bestShift.employees) {
+            linkedEmployees = bestShift.employees;
+            newReview.linkedEmployeeIds = linkedEmployees.map(e => e.id);
+          }
+
+          parsedReviews.push(newReview);
+
+          newTimelineEvents.push({
+            id: id,
+            branch,
+            type: 'review',
+            title: `تقييم جديد (${newReview.rating})`,
+            time: newReview.time,
+            date: newReview.date,
+            comment: newReview.comment,
+            employees: linkedEmployees,
+            reviewId: id,
+            batchId
           });
-          setTimeout(() => { localStorage.setItem('app_timeline', JSON.stringify(updatedT)); }, 0);
-          return updatedT;
-        });
+        }
       }
-
-      setTimeout(() => { localStorage.setItem('app_reviews', JSON.stringify(newReviews)); }, 0);
-      return newReviews;
     });
+
+    return { reviews: parsedReviews, timelineEvents: newTimelineEvents };
   };
 
-  const commitShifts = (shifts: TimelineEvent[]) => {
+  const commitReviews = (newReviews: CustomerReview[], newTimelineEvents: TimelineEvent[]) => {
+    setReviews(prev => {
+      const updated = [...newReviews, ...prev];
+      setTimeout(() => { localStorage.setItem('app_reviews', JSON.stringify(updated)); }, 0);
+      return updated;
+    });
+
+    if (newTimelineEvents.length > 0) {
+      setTimeline(prevT => {
+        const updatedT = [...newTimelineEvents, ...prevT].sort((a, b) => {
+           const aTime = parseInt(a.time.replace(':', '')) || 0;
+           const bTime = parseInt(b.time.replace(':', '')) || 0;
+           return bTime - aTime;
+        });
+        setTimeout(() => { localStorage.setItem('app_timeline', JSON.stringify(updatedT)); }, 0);
+        return updatedT;
+      });
+    }
+  };
+
+  const commitShifts = (shifts: TimelineEvent[], batchId?: string) => {
     setTimeline(prev => {
-      let newTimeline = [...prev, ...shifts];
+      let finalShifts = batchId ? shifts.map(s => ({ ...s, batchId })) : shifts;
+      let newTimeline = [...prev, ...finalShifts];
       newTimeline.sort((a, b) => {
          const aTime = parseInt(a.time.replace(':', '')) || 0;
          const bTime = parseInt(b.time.replace(':', '')) || 0;
@@ -405,7 +407,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider value={{ 
       users: enrichedUsers, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, 
       timeline, addTimelineComment, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent,
-      reviews, injectReviews, commitShifts, updateReview, deleteReview 
+      reviews, parseReviewsText, commitReviews, commitShifts, updateReview, deleteReview, undoBatch 
     }}>
       {children}
     </DataContext.Provider>

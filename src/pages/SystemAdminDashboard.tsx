@@ -1,14 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2, Edit } from 'lucide-react';
+import { AlertOctagon, Users, LogOut, Building2, Activity, CalendarClock, MessageSquareWarning, Upload, ShieldAlert, PlusCircle, CheckCircle2, BarChart3, Trash2, Edit, Undo2, History } from 'lucide-react';
 import employeeImg from '../assets/employee.png';
 import { formatDateTime } from '../lib/formatDate';
 
 export const SystemAdminDashboard: React.FC = () => {
   const { logout } = useAuth();
-  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, injectReviews, commitShifts, updateReview, deleteReview } = useData();
-  const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats'>('timeline');
+  const { users, updateUser, addUser, removeUser, branchSettings, updateBranchSettings, timeline, addTimelineEvent, updateTimelineEvent, deleteTimelineEvent, reviews, parseReviewsText, commitReviews, commitShifts, updateReview, deleteReview, undoBatch } = useData();
+  const [activeTab, setActiveTab] = useState<'timeline' | 'branches' | 'employees' | 'notes' | 'stats' | 'history'>('timeline');
 
   const branches = ['جاليري', 'ذافيو', 'سلام', 'القصر', 'المملكة', 'شرق'];
   const [selectedBranch, setSelectedBranch] = useState(branches[0]);
@@ -22,6 +22,7 @@ export const SystemAdminDashboard: React.FC = () => {
 
   const [reviewsText, setReviewsText] = useState('');
   const [shiftsText, setShiftsText] = useState('');
+  const [pendingReviews, setPendingReviews] = useState<{ reviews: any[], timelineEvents: any[] } | null>(null);
   const [pendingShifts, setPendingShifts] = useState<any[]>([]);
   const [unmatchedShiftNames, setUnmatchedShiftNames] = useState<string[]>([]);
   const [shiftMappings, setShiftMappings] = useState<Record<string, string>>({});
@@ -36,11 +37,66 @@ export const SystemAdminDashboard: React.FC = () => {
   const [editingNoteComment, setEditingNoteComment] = useState('');
   const allAvailableEmployees = users.filter(u => (u.branch === selectedTimelineBranch || u.branch === 'موظفة خارجية') && u.role === 'employee');
 
+  const injectionBatches = React.useMemo(() => {
+    const batches = new Map<string, { id: string, time: number, type: 'review' | 'shift', count: number, branch: string }>();
+    
+    reviews.forEach(r => {
+      if (r.batchId) {
+        if (!batches.has(r.batchId)) {
+          batches.set(r.batchId, { id: r.batchId, time: parseInt(r.batchId.split('_')[1]) || 0, type: 'review', count: 0, branch: r.branch });
+        }
+        batches.get(r.batchId)!.count++;
+      }
+    });
+
+    timeline.forEach(t => {
+      if (t.batchId && t.type === 'shift') {
+        if (!batches.has(t.batchId)) {
+          batches.set(t.batchId, { id: t.batchId, time: parseInt(t.batchId.split('_')[1]) || 0, type: 'shift', count: 0, branch: t.branch });
+        }
+        batches.get(t.batchId)!.count++;
+      }
+    });
+
+    return Array.from(batches.values()).sort((a, b) => b.time - a.time);
+  }, [reviews, timeline]);
+
+  const handleUndoBatch = (batchId: string) => {
+    if (confirm('هل أنت متأكد من التراجع عن عملية الحقن هذه؟ سيتم حذف جميع البيانات المرتبطة بها.')) {
+      undoBatch(batchId);
+      showToast('تم التراجع عن الحقن بنجاح');
+    }
+  };
+
   const handleInjectReviews = () => {
     if (!reviewsText.trim()) return;
-    injectReviews(selectedBranch, reviewsText);
-    showToast('تم استيراد وحقن التقييمات بنجاح');
+    const batchId = `batch_${Date.now()}`;
+    const parsed = parseReviewsText(selectedBranch, reviewsText, batchId);
+    if (parsed.reviews.length > 0) {
+      setPendingReviews(parsed);
+      showToast('تم استخراج التقييمات بنجاح، يرجى مراجعتها وتأكيد الحقن');
+    } else {
+      showToast('لم يتم العثور على تقييمات بصيغة صحيحة');
+    }
+  };
+
+  const handleConfirmReviews = () => {
+    if (!pendingReviews) return;
+    commitReviews(pendingReviews.reviews, pendingReviews.timelineEvents);
+    setPendingReviews(null);
     setReviewsText('');
+    showToast('تم اعتماد التقييمات بنجاح');
+  };
+
+  const handleRemovePendingReview = (id: string) => {
+    if (!pendingReviews) return;
+    const filteredR = pendingReviews.reviews.filter(r => r.id !== id);
+    const filteredT = pendingReviews.timelineEvents.filter(t => t.id !== id);
+    if (filteredR.length === 0) {
+      setPendingReviews(null);
+    } else {
+      setPendingReviews({ reviews: filteredR, timelineEvents: filteredT });
+    }
   };
 
   const handleParseShifts = () => {
@@ -70,7 +126,7 @@ export const SystemAdminDashboard: React.FC = () => {
         
         const shiftEmployees: {id: string, name: string}[] = [];
         names.forEach(name => {
-          const foundEmp = users.find(u => u.name === name || u.id === name || u.name === `الموظفة ${name}`);
+          const foundEmp = users.find(u => (u.branch === selectedBranch || u.branch === 'موظفة خارجية') && (u.name === name || u.id === name || u.name === `الموظفة ${name}`));
           if (foundEmp) {
             shiftEmployees.push({ id: foundEmp.id, name: foundEmp.name });
           } else {
@@ -97,14 +153,12 @@ export const SystemAdminDashboard: React.FC = () => {
     setUnmatchedShiftNames(Array.from(unmatched));
     setShiftMappings({});
     
-    if (unmatched.size === 0 && parsed.length > 0) {
-      // Auto commit if no unmatched names
-      commitShifts(parsed);
-      setPendingShifts([]);
-      setShiftsText('');
-      showToast('تم حقن الشفتات بنجاح');
-    } else if (parsed.length > 0) {
-      showToast('يوجد أسماء غير مرتبطة، يرجى ربطها أولاً');
+    if (parsed.length > 0) {
+      if (unmatched.size > 0) {
+        showToast('يوجد أسماء غير مرتبطة، يرجى ربطها أولاً');
+      } else {
+        showToast('تم استخراج الشفتات بنجاح، يرجى مراجعتها وتأكيد الحقن');
+      }
     } else {
       showToast('لم يتم العثور على شفتات بصيغة صحيحة');
     }
@@ -140,12 +194,17 @@ export const SystemAdminDashboard: React.FC = () => {
        }));
     }
     
-    commitShifts(finalShifts);
+    const batchId = `batch_${Date.now()}`;
+    commitShifts(finalShifts, batchId);
     setPendingShifts([]);
     setUnmatchedShiftNames([]);
     setShiftMappings({});
     setShiftsText('');
     showToast('تم حقن الشفتات بنجاح');
+  };
+
+  const handleRemovePendingShift = (id: string) => {
+    setPendingShifts(prev => prev.filter(s => s.id !== id));
   };
   
   const handleSaveLinking = (timelineId: string, reviewId: string | undefined) => {
@@ -842,10 +901,39 @@ export const SystemAdminDashboard: React.FC = () => {
                     className="w-full h-32 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
                   ></textarea>
                 </div>
-                <button onClick={handleInjectReviews} className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 text-md flex items-center justify-center gap-2 shadow-sm mb-6">
-                  <CheckCircle2 size={18} />
-                  بدء الحقن والمزامنة للتقييمات
-                </button>
+
+                {pendingReviews && (
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-bold text-blue-800 mb-3 text-sm">مراجعة التقييمات المستخرجة ({pendingReviews.reviews.length})</h4>
+                    <div className="max-h-60 overflow-y-auto space-y-2 mb-4 pr-2 custom-scrollbar">
+                      {pendingReviews.reviews.map(r => {
+                        const linkedEmpNames = r.linkedEmployeeIds.map((id: string) => users.find(u => u.id === id)?.name || id).join('، ');
+                        return (
+                          <div key={r.id} className="flex justify-between items-center p-3 bg-white rounded border border-blue-100">
+                            <div>
+                              <div className="font-bold text-sm text-gray-800">{r.reviewerName} - {r.rating}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {linkedEmpNames ? `سيتم ربط: ${linkedEmpNames}` : 'لن يتم ربط أي موظفة تلقائياً'}
+                              </div>
+                            </div>
+                            <button onClick={() => handleRemovePendingReview(r.id)} className="text-red-500 hover:text-red-700 p-1 font-bold">✖</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleConfirmReviews} className="flex-1 bg-green-600 text-white p-2 rounded-lg font-bold hover:bg-green-700 text-sm">اعتماد التقييمات</button>
+                      <button onClick={() => setPendingReviews(null)} className="flex-1 bg-gray-500 text-white p-2 rounded-lg font-bold hover:bg-gray-600 text-sm">إلغاء</button>
+                    </div>
+                  </div>
+                )}
+
+                {!pendingReviews && (
+                  <button onClick={handleInjectReviews} className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 text-md flex items-center justify-center gap-2 shadow-sm mb-6">
+                    <CheckCircle2 size={18} />
+                    استخراج ومراجعة التقييمات
+                  </button>
+                )}
 
                 <div className="mb-4 pt-4 border-t border-blue-200">
                   <div className="flex justify-between items-center mb-2">
@@ -868,6 +956,43 @@ export const SystemAdminDashboard: React.FC = () => {
                     className="w-full h-32 p-4 border border-blue-200 rounded-lg text-left bg-white font-mono text-sm leading-relaxed" dir="rtl"
                   ></textarea>
                 </div>
+
+                {pendingShifts.length > 0 && (
+                  <div className="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <h4 className="font-bold text-indigo-800 mb-3 text-sm">مراجعة الشفتات المستخرجة ({pendingShifts.length})</h4>
+                    <div className="max-h-60 overflow-y-auto space-y-2 mb-4 pr-2 custom-scrollbar">
+                      {pendingShifts.map((s, idx) => {
+                        // Estimate how many reviews this shift will capture (unlinked reviews in this time window)
+                        const sTime = parseInt(s.time.replace(':', ''));
+                        const eTime = parseInt(s.endTime.replace(':', ''));
+                        let reviewsCount = 0;
+                        reviews.filter(r => r.branch === selectedBranch && r.linkedEmployeeIds.length === 0).forEach(r => {
+                          const rTime = parseInt(r.time.replace(':', ''));
+                          if (eTime < sTime) { // Cross midnight
+                            if (rTime >= sTime || rTime <= eTime) reviewsCount++;
+                          } else {
+                            if (rTime >= sTime && rTime <= eTime) reviewsCount++;
+                          }
+                        });
+                        
+                        return (
+                          <div key={s.id || idx} className="flex justify-between items-center p-3 bg-white rounded border border-indigo-100">
+                            <div>
+                              <div className="font-bold text-sm text-gray-800">شفت ({s.time} - {s.endTime})</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {s.employees.map((e: any) => e.name).join('، ')}
+                              </div>
+                              <div className="text-xs text-indigo-600 mt-1 font-bold">
+                                سيلتقط {reviewsCount} تقييم (تقريبي)
+                              </div>
+                            </div>
+                            <button onClick={() => handleRemovePendingShift(s.id)} className="text-red-500 hover:text-red-700 p-1 font-bold">✖</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {unmatchedShiftNames.length > 0 && (
                   <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
@@ -893,15 +1018,20 @@ export const SystemAdminDashboard: React.FC = () => {
                   </div>
                 )}
 
-                {unmatchedShiftNames.length > 0 ? (
-                  <button onClick={handleConfirmShifts} className="w-full bg-green-600 text-white p-3 rounded-lg font-bold hover:bg-green-700 text-md flex items-center justify-center gap-2 shadow-sm">
-                    <CheckCircle2 size={18} />
-                    تأكيد الحقن
-                  </button>
+                {pendingShifts.length > 0 ? (
+                  <div className="flex gap-2">
+                    <button onClick={handleConfirmShifts} className="flex-1 bg-green-600 text-white p-3 rounded-lg font-bold hover:bg-green-700 text-md flex items-center justify-center gap-2 shadow-sm">
+                      <CheckCircle2 size={18} />
+                      اعتماد الشفتات
+                    </button>
+                    <button onClick={() => { setPendingShifts([]); setUnmatchedShiftNames([]); }} className="flex-1 bg-gray-500 text-white p-3 rounded-lg font-bold hover:bg-gray-600 text-md">
+                      إلغاء
+                    </button>
+                  </div>
                 ) : (
                   <button onClick={handleParseShifts} className="w-full bg-indigo-600 text-white p-3 rounded-lg font-bold hover:bg-indigo-700 text-md flex items-center justify-center gap-2 shadow-sm">
                     <CalendarClock size={18} />
-                    بدء حقن الشفتات
+                    استخراج ومراجعة الشفتات
                   </button>
                 )}
               </div>
@@ -981,6 +1111,39 @@ export const SystemAdminDashboard: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'history' && (
+            <div>
+              <h2 className="text-xl font-bold mb-6 border-b pb-2 flex items-center gap-2 text-gray-800">
+                <History className="text-gray-500" /> سجل عمليات الحقن
+              </h2>
+              {injectionBatches.length === 0 ? (
+                <div className="text-center text-gray-500 p-8 bg-gray-50 rounded-xl">لا توجد عمليات حقن سابقة مسجلة.</div>
+              ) : (
+                <div className="space-y-4">
+                  {injectionBatches.map(batch => (
+                    <div key={batch.id} className="flex justify-between items-center p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                      <div>
+                        <div className="font-bold text-gray-800 flex items-center gap-2">
+                          {batch.type === 'review' ? <span className="text-yellow-600">★ تقييمات</span> : <span className="text-indigo-600">⏱ شفتات</span>}
+                          - فرع {batch.branch}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          تاريخ العملية: {new Date(batch.time).toLocaleString('ar-SA')}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1 font-bold">
+                          العدد المحقون: {batch.count}
+                        </div>
+                      </div>
+                      <button onClick={() => handleUndoBatch(batch.id)} className="flex items-center gap-2 bg-red-100 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-200">
+                        <Undo2 size={16} /> تراجع
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -1010,6 +1173,11 @@ export const SystemAdminDashboard: React.FC = () => {
           className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'stats' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
           <BarChart3 size={22} className={activeTab === 'stats' ? 'stroke-[2.5px]' : ''} />
           <span className="text-[10px] font-bold">الإحصائيات</span>
+        </button>
+        <button onClick={() => setActiveTab('history')}
+          className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 rounded-xl transition-all duration-300 ${activeTab === 'history' ? 'text-blue-600 bg-blue-50/80 scale-105' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+          <History size={22} className={activeTab === 'history' ? 'stroke-[2.5px]' : ''} />
+          <span className="text-[10px] font-bold">سجل العمليات</span>
         </button>
       </div>
     </div>
